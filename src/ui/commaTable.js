@@ -14,6 +14,14 @@ function ratioFromMonzo(mz, primes){
 
 export function renderCommaTable(tbodyEl, commas, primes, edoMatches){
   clear(tbodyEl);
+  if(!commas || commas.length===0){
+    const tr=document.createElement('tr');
+    const td=document.createElement('td');
+    td.colSpan=6; td.className='hint';
+    td.textContent='No commas found for these settings. Try increasing exponent bound or max cents, or include prime 3 in the subgroup.';
+    tr.appendChild(td); tbodyEl.appendChild(tr);
+    return;
+  }
   commas.forEach((row, idx)=>{
     const edos = edoMatches.get(row.monzo.join(','))||[];
     const tr = document.createElement('tr');

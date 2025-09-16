@@ -58,6 +58,8 @@ document.getElementById('clearStepsBtn').addEventListener('click', function(){ v
 document.getElementById('runBtn').addEventListener('click', function(){
   var primes = parsePrimeInput(primeInput.value);
   if (primes.length<2){ alert('Provide at least two primes. Example: 5  (≙ 2,3,5)'); return; }
+  // Keep the steps vocabulary in sync with current primes/odd limit when running a query
+  buildStepsChips();
   var expBound = Number(document.getElementById('expBound').value)||5;
   var maxCents = Number(document.getElementById('maxCents').value)||30;
   var Nmin = Number(document.getElementById('edoMin').value)||5;
