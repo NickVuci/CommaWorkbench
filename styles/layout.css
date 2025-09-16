@@ -1,0 +1,18 @@
+header{ padding:20px; border-bottom:1px solid var(--border); background:linear-gradient(180deg,#121632,#0f1220); }
+h1{ margin:0 0 6px; font-size:22px; }
+.sub{ color:var(--muted); font-size:14px; }
+main{
+	/* Fill the viewport width and left-align content to remove left dead space */
+	max-width:none;
+	margin:0;
+	padding:18px;
+	display:grid;
+	/* Slightly more flexible sidebar so fields aren't cramped */
+	grid-template-columns:minmax(320px, 380px) 1fr;
+	gap:16px;
+}
+
+/* Stack columns on smaller screens if needed */
+@media (max-width: 900px){
+	main{ grid-template-columns:1fr; }
+}
