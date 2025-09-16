@@ -9,6 +9,7 @@ import { buildStepsChips as buildStepsChipsUI, stepsSelected as stepsSelectedUI 
 import { renderCommaTable } from './ui/commaTable.js';
 import { renderPumpTable } from './ui/pumpTable.js';
 import { renderTestResults } from './ui/testsUI.js';
+import { runSelfTests } from './tests/selfTests.js';
 
 /* imports replace previous in-file implementations */
 
@@ -72,19 +73,13 @@ document.getElementById('clearBtn').addEventListener('click', function(){ commaT
 // test rendering handled in testsUI via renderTestResults; below we still assemble results inline
 
 document.getElementById('testBtn').addEventListener('click', function(){
-  var results=[];
-  // Test 1: parsePrimeInput single limit
-  var pA=parsePrimeInput('5'); var passA = pA.length===3 && pA[0]===2 && pA[1]===3 && pA[2]===5; results.push({ name:'parsePrimeInput("5") → 2,3,5', ok:passA, notes:'out='+pA.join(',') });
-  // Test 2: parsePrimeInput subgroup
-  var pB=parsePrimeInput('2,5,7'); var passB = pB.length===3 && pB[0]===2 && pB[1]===5 && pB[2]===7; results.push({ name:'parsePrimeInput("2,5,7") sorted', ok:passB, notes:'out='+pB.join(',') });
-  // Test 3: cents(81/80)
-  var cval = Math.abs(centsFromMonzo([-4,4,-1],[2,3,5])); results.push({ name:'cents(81/80) ≈ 21.5¢', ok:Math.abs(cval-21.506)<=0.25, notes:'cents='+cval.toFixed(3) });
-  // Test 4: EDOs tempering syntonic include 12 and 19
-  var edos = edosTemperingComma([-4,4,-1],[2,3,5],5,72); var has12=edos.indexOf(12)>=0; var has19=edos.indexOf(19)>=0; results.push({ name:'EDOs killing 81/80 include 12 & 19', ok:has12 && has19, notes:'found='+edos.slice(0,10).join(',')+'…' });
-  // Test 5: vocabulary generation includes 9/8 when primes include 3 and oddLimit≥9
-  var vocab = generateIntervalsForVocabulary([2,3,5],9,200); var hasNineOverEight=false; for(var i=0;i<vocab.length;i++){ if(vocab[i].name.indexOf('9/8')===0){ hasNineOverEight=true; break; } }
-  results.push({ name:'Auto-steps include 9/8 with 5-limit, odd≤9', ok:hasNineOverEight, notes:'count='+String(vocab.length) });
   var tbody=document.querySelector('#testTable tbody');
+  var results = runSelfTests({
+    parsePrimeInput,
+    centsFromMonzo,
+    edosTemperingComma,
+    generateIntervalsForVocabulary
+  });
   renderTestResults(tbody, results);
 });
 
