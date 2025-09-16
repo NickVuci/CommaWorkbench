@@ -101,7 +101,7 @@ function onSelectComma(idx){
   if(pumpCancelBtn){ pumpCancelBtn.onclick = onCancel; }
 
     // Start async enumeration
-    cancelHandle = enumeratePumpsAsync(c, steps, { coeffBound, maxSolutions: 200, timeBudgetMs: 3000, chunkMs: 12, iterativeDeepen: true }, {
+    cancelHandle = enumeratePumpsAsync(c, steps, { coeffBound, /* no cap or time limit by default */ chunkMs: 12, iterativeDeepen: true }, {
       onProgress: (meta)=>{ updateProgress(meta); },
       onBatch: (pumps)=>{ kpiPumps.textContent=String(pumps.length); renderPumpTable(pumpTableBody, steps, pumps, c); },
       onDone: (final, meta)=>{

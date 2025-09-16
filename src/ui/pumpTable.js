@@ -4,7 +4,7 @@ import { clear } from './dom.js';
 
 export function renderPumpTable(tbodyEl, steps, pumps, comma){
   clear(tbodyEl);
-  for(let i=0;i<pumps.length && i<200;i++){
+  for(let i=0;i<pumps.length;i++){
     const x=pumps[i]; const L=l1(x); const chk=applySteps(steps,x);
     const parts=[]; for(let j=0;j<x.length;j++){ const k=x[j]; if(!k) continue; parts.push((k>=0? '+'+String(k):String(k))+'·'+steps[j].name); }
     const tr=document.createElement('tr');

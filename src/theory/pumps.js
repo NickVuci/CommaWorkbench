@@ -52,10 +52,10 @@ function orderStepsWithIndex(steps, comma){
 }
 
 // Async, chunked MITM enumeration with safeguards
-// options: { coeffBound, maxSolutions=200, timeBudgetMs=1500, chunkMs=12, iterativeDeepen=true }
+// options: { coeffBound, maxSolutions=Infinity, timeBudgetMs=Infinity, chunkMs=12, iterativeDeepen=true }
 // callbacks: { onProgress(meta), onBatch(pumps), onDone(finalPumps, meta) }
 export function enumeratePumpsAsync(comma, steps, options, callbacks){
-  const opts = Object.assign({ maxSolutions:200, timeBudgetMs:1500, chunkMs:12, iterativeDeepen:true }, options||{});
+  const opts = Object.assign({ maxSolutions: Infinity, timeBudgetMs: Infinity, chunkMs:12, iterativeDeepen:true }, options||{});
   const cb = Object.assign({ onProgress:()=>{}, onBatch:()=>{}, onDone:()=>{} }, callbacks||{});
 
   const k = steps.length; if(k===0){ cb.onDone([], { reason:'no-steps'}); return { cancel: ()=>{} } }
@@ -84,7 +84,7 @@ export function enumeratePumpsAsync(comma, steps, options, callbacks){
     const L = l1(coeffOriginal);
     let pos = bestArr.findIndex(e=> l1(e) > L); // simple linear insert; K is small
     if(pos===-1) bestArr.push(coeffOriginal); else bestArr.splice(pos,0,coeffOriginal);
-    if(bestArr.length>maxSolutions){ bestArr.pop(); }
+    if(Number.isFinite(maxSolutions) && bestArr.length>maxSolutions){ bestArr.pop(); }
     return true;
   }
 
@@ -176,11 +176,12 @@ export function enumeratePumpsAsync(comma, steps, options, callbacks){
   }
 
   function loop(){
-    if(cancelled){ cb.onDone(bestArr.slice(), { reason:'cancelled', partial:true, elapsed: performance.now()-started, capped: bestArr.length>=maxSolutions }); return; }
-    if(performance.now() - started > opts.timeBudgetMs){ cb.onDone(bestArr.slice(), { reason:'time-budget', partial:true, elapsed: performance.now()-started, capped: bestArr.length>=maxSolutions }); return; }
+    if(cancelled){ cb.onDone(bestArr.slice(), { reason:'cancelled', partial:true, elapsed: performance.now()-started, capped: Number.isFinite(maxSolutions) && bestArr.length>=maxSolutions }); return; }
+    if(Number.isFinite(opts.timeBudgetMs) && (performance.now() - started > opts.timeBudgetMs)){
+      cb.onDone(bestArr.slice(), { reason:'time-budget', partial:true, elapsed: performance.now()-started, capped: Number.isFinite(maxSolutions) && bestArr.length>=maxSolutions }); return; }
 
     // progress meta (best count, B, phase)
-    cb.onProgress({ B: currentB, phase, found: bestArr.length, elapsed: performance.now()-started, maxSolutions });
+  cb.onProgress({ B: currentB, phase, found: bestArr.length, elapsed: performance.now()-started, maxSolutions });
 
     const coeffs = getCoeffs(currentB);
     const mid = Math.floor(orderedSteps.length/2);
@@ -196,7 +197,7 @@ export function enumeratePumpsAsync(comma, steps, options, callbacks){
     if(phase==='left'){
       if(!leftIt){ leftIt = leftSearchIterative(left, rightMap, coeffs); }
       const r = leftIt.step();
-      if(r.done || bestArr.length>=maxSolutions){
+      if(r.done || (Number.isFinite(maxSolutions) && bestArr.length>=maxSolutions)){
         if(currentB >= Bmax || !opts.iterativeDeepen){ phase='done'; }
         else { phase='nextB'; }
       }
@@ -208,7 +209,7 @@ export function enumeratePumpsAsync(comma, steps, options, callbacks){
       return void setTimeout(loop, 0);
     }
     if(phase==='done'){
-      cb.onDone(bestArr.slice(), { reason: bestArr.length>=maxSolutions? 'capped':'complete', partial:false, elapsed: performance.now()-started, capped: bestArr.length>=maxSolutions });
+      cb.onDone(bestArr.slice(), { reason: (Number.isFinite(maxSolutions) && bestArr.length>=maxSolutions)? 'capped':'complete', partial:false, elapsed: performance.now()-started, capped: Number.isFinite(maxSolutions) && bestArr.length>=maxSolutions });
       return;
     }
   }
