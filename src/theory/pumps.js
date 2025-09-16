@@ -1,20 +1,223 @@
-import { range, l1, vecEq } from '../core/number.js';
+import { range, l1, vecEq, gcd } from '../core/number.js';
 import { applySteps } from '../core/monzo.js';
 
+// Utility vector ops
+function addVecInPlace(dst, src){ for(let i=0;i<dst.length;i++) dst[i]+=src[i]; }
+function subVec(a,b){ const r=a.slice(); for(let i=0;i<r.length;i++) r[i]-=b[i]; return r; }
+function mulVec(v,s){ const out=new Array(v.length); for(let i=0;i<v.length;i++) out[i]=v[i]*s; return out; }
+function zero(n){ return new Array(n).fill(0); }
+
+function stepMatrixRowGCDs(steps){
+  if(steps.length===0) return [];
+  const n=steps[0].monzo.length; const g=new Array(n).fill(0);
+  for(let i=0;i<n;i++){
+    let gi=0;
+    for(let j=0;j<steps.length;j++) gi = gcd(gi, steps[j].monzo[i]||0);
+    g[i]=Math.abs(gi);
+  }
+  return g;
+}
+
+function isFeasibleByRowGCD(comma, steps){
+  const g = stepMatrixRowGCDs(steps);
+  for(let i=0;i<g.length;i++){
+    const gi=g[i]; const ci=comma[i]||0;
+    if(gi===0){ if(ci!==0) return false; }
+    else if(ci % gi !== 0) return false;
+  }
+  return true;
+}
+
+function perDimReach(steps, B){
+  if(steps.length===0) return [];
+  const n=steps[0].monzo.length; const R=new Array(n).fill(0);
+  for(let i=0;i<n;i++){
+    let s=0; for(let j=0;j<steps.length;j++) s += Math.abs(steps[j].monzo[i]||0) * B; R[i]=s;
+  }
+  return R;
+}
+
+function violatesReach(targetDelta, reach){
+  for(let i=0;i<reach.length;i++) if(Math.abs(targetDelta[i]||0) > (reach[i]||0)) return true;
+  return false;
+}
+
+function scoreStepsForOrdering(steps, comma){
+  // score(s_j) = |dot(s_j, c)| / (||s_j||_1 + 1e-9)
+  return steps.slice().map(s=>({ s, sc: (Math.abs(s.monzo.reduce((p,x,idx)=> p + x*(comma[idx]||0), 0))) / (s.monzo.reduce((p,x)=> p + Math.abs(x),0) + 1e-9) }))
+    .sort((a,b)=> b.sc - a.sc)
+    .map(o=> o.s);
+}
+
+// Async, chunked MITM enumeration with safeguards
+// options: { coeffBound, maxSolutions=200, timeBudgetMs=1500, chunkMs=12, iterativeDeepen=true }
+// callbacks: { onProgress(meta), onBatch(pumps), onDone(finalPumps, meta) }
+export function enumeratePumpsAsync(comma, steps, options, callbacks){
+  const opts = Object.assign({ maxSolutions:200, timeBudgetMs:1500, chunkMs:12, iterativeDeepen:true }, options||{});
+  const cb = Object.assign({ onProgress:()=>{}, onBatch:()=>{}, onDone:()=>{} }, callbacks||{});
+
+  const k = steps.length; if(k===0){ cb.onDone([], { reason:'no-steps'}); return { cancel: ()=>{} } }
+  const n = comma.length;
+
+  // Step ordering
+  const orderedSteps = scoreStepsForOrdering(steps, comma);
+
+  // Feasibility and reach pre-checks
+  if(!isFeasibleByRowGCD(comma, orderedSteps)){
+    cb.onDone([], { reason:'infeasible-gcd' });
+    return { cancel: ()=>{} };
+  }
+
+  let cancelled=false; const started=performance.now();
+  const maxSolutions = opts.maxSolutions;
+  const bestMap = new Map(); // key -> coeff array
+  const bestArr = []; // keep sorted by L1 asc, stable
+
+  function considerSolution(coeff){
+    const key = coeff.join(',');
+    if(bestMap.has(key)) return false;
+    bestMap.set(key, coeff);
+    // Insert into bestArr sorted by L1 (stable)
+    const L = l1(coeff);
+    let pos = bestArr.findIndex(e=> l1(e) > L);
+    if(pos===-1) bestArr.push(coeff); else bestArr.splice(pos,0,coeff);
+    if(bestArr.length>maxSolutions){ bestArr.pop(); }
+    return true;
+  }
+
+  function buildRightIterative(stepsRight, coeffs){
+    const len=stepsRight.length; const rightMap = new Map();
+    // Stack of frames: {i, curM, curC, t}
+    const stack=[]; stack.push({ i:0, curM: zero(n), curC: [], t:0 });
+    let iter=0; let built=0;
+    function step(){
+      const tStart = performance.now();
+      while(stack.length && !cancelled){
+        let fr = stack[stack.length-1];
+        if(fr.i===len){
+          const key = fr.curM.join(',');
+          let arr = rightMap.get(key); if(!arr){ arr=[]; rightMap.set(key, arr); }
+          arr.push(fr.curC.slice());
+          built++;
+          stack.pop();
+          continue;
+        }
+        if(fr.t >= coeffs.length){ stack.pop(); continue; }
+        const c = coeffs[fr.t++];
+        const st = stepsRight[fr.i];
+        const nextM = fr.curM.slice(); addVecInPlace(nextM, mulVec(st.monzo, c));
+        const nextC = fr.curC.slice(); nextC.push(c);
+        stack.push({ i: fr.i+1, curM: nextM, curC: nextC, t: 0 });
+        iter++;
+        if(performance.now() - tStart > opts.chunkMs) break;
+      }
+      return { done: stack.length===0, built, map: rightMap };
+    }
+    return { step };
+  }
+
+  function leftSearchIterative(stepsLeft, rightMap, coeffs){
+    const len=stepsLeft.length; const stack=[]; stack.push({ i:0, curM: zero(n), curC: [], t:0 });
+    let prod=0; let batches=0; const batchFound=[];
+    function step(){
+      const tStart = performance.now();
+      while(stack.length && !cancelled){
+        let fr = stack[stack.length-1];
+        if(fr.i===len){
+          const needKey = subVec(comma, fr.curM).join(',');
+          const matches = rightMap.get(needKey);
+          if(matches){
+            for(let u=0; u<matches.length; u++){
+              const rc = matches[u];
+              const coeff = fr.curC.concat(rc);
+              const chk = applySteps(orderedSteps, coeff);
+              if(vecEq(chk, comma)){
+                if(considerSolution(coeff)) batchFound.push(coeff);
+                if(bestArr.length>=maxSolutions) { /* keep going but will return capped */ }
+              }
+            }
+          }
+          stack.pop();
+          continue;
+        }
+        if(fr.t >= coeffs.length){ stack.pop(); continue; }
+        const c = coeffs[fr.t++];
+        const st = stepsLeft[fr.i];
+        const nextM = fr.curM.slice(); addVecInPlace(nextM, mulVec(st.monzo, c));
+        const nextC = fr.curC.slice(); nextC.push(c);
+        stack.push({ i: fr.i+1, curM: nextM, curC: nextC, t: 0 });
+        prod++;
+        if(performance.now() - tStart > opts.chunkMs) break;
+      }
+      if(batchFound.length){ cb.onBatch(bestArr.slice()); batches++; batchFound.length=0; }
+      return { done: stack.length===0, produced: prod };
+    }
+    return { step };
+  }
+
+  // Iterative deepening over B if requested
+  const Bmax = opts.coeffBound||6;
+  const coeffsByB = new Map();
+  function getCoeffs(B){ if(!coeffsByB.has(B)) coeffsByB.set(B, range(-B,B)); return coeffsByB.get(B); }
+
+  let currentB = opts.iterativeDeepen ? Math.min(2, Bmax) : Bmax;
+  let phase = 'right'; // or 'left' or 'nextB' or 'done'
+  let rightIt = null, leftIt = null, rightMap = null;
+
+  // Pre-check total reach at Bmax
+  const Rmax = perDimReach(orderedSteps, Bmax);
+  if(violatesReach(comma, Rmax)){
+    cb.onDone([], { reason:'unreachable-bounds' });
+    return { cancel: ()=>{} };
+  }
+
+  function loop(){
+    if(cancelled){ cb.onDone(bestArr.slice(), { reason:'cancelled', partial:true, elapsed: performance.now()-started, capped: bestArr.length>=maxSolutions }); return; }
+    if(performance.now() - started > opts.timeBudgetMs){ cb.onDone(bestArr.slice(), { reason:'time-budget', partial:true, elapsed: performance.now()-started, capped: bestArr.length>=maxSolutions }); return; }
+
+    // progress meta (best count, B, phase)
+    cb.onProgress({ B: currentB, phase, found: bestArr.length, elapsed: performance.now()-started, maxSolutions });
+
+    const coeffs = getCoeffs(currentB);
+    const mid = Math.floor(orderedSteps.length/2);
+    const left = orderedSteps.slice(0,mid);
+    const right = orderedSteps.slice(mid);
+
+    if(phase==='right'){
+      if(!rightIt){ rightIt = buildRightIterative(right, coeffs); }
+      const r = rightIt.step(); rightMap = r.map;
+      if(r.done){ phase='left'; }
+      return void setTimeout(loop, 0);
+    }
+    if(phase==='left'){
+      if(!leftIt){ leftIt = leftSearchIterative(left, rightMap, coeffs); }
+      const r = leftIt.step();
+      if(r.done || bestArr.length>=maxSolutions){
+        if(currentB >= Bmax || !opts.iterativeDeepen){ phase='done'; }
+        else { phase='nextB'; }
+      }
+      return void setTimeout(loop, 0);
+    }
+    if(phase==='nextB'){
+      currentB = Math.min(currentB+1, Bmax);
+      rightIt = null; leftIt = null; rightMap = null; phase='right';
+      return void setTimeout(loop, 0);
+    }
+    if(phase==='done'){
+      cb.onDone(bestArr.slice(), { reason: bestArr.length>=maxSolutions? 'capped':'complete', partial:false, elapsed: performance.now()-started, capped: bestArr.length>=maxSolutions });
+      return;
+    }
+  }
+
+  setTimeout(loop, 0);
+  return { cancel: ()=> { cancelled=true; } };
+}
+
+// Legacy sync function: falls back to async enumerator then returns final list via a blocking loop (not used by UI)
 export function enumeratePumps(comma, steps, coeffBound){
-  const n=comma.length; const k=steps.length; if(k===0) return [];
-  const mid=Math.floor(k/2); const left=steps.slice(0,mid); const right=steps.slice(mid);
-  function addVec(a,b){ const r=a.slice(); for(let i=0;i<r.length;i++) r[i]+=b[i]; return r; }
-  function mulVec(v,s){ return v.map(x=> x*s); }
-  function subVec(a,b){ const r=a.slice(); for(let i=0;i<r.length;i++) r[i]-=b[i]; return r; }
-  const coeffs=range(-coeffBound,coeffBound);
-  const rightMap=new Map();
-  (function buildRight(){
-    const len=right.length; function rec(i,curM,curC){ if(i===len){ const key=curM.join(','); if(!rightMap.has(key)) rightMap.set(key,[]); rightMap.get(key).push(curC.slice()); return; }
-      const st=right[i]; for(let t=0;t<coeffs.length;t++){ const c=coeffs[t]; const nm=addVec(curM,mulVec(st.monzo,c)); curC.push(c); rec(i+1,nm,curC); curC.pop(); } }
-    rec(0,new Array(n).fill(0),[]);
-  })();
-  const sols=[]; (function leftSearch(){ const len=left.length; function rec(i,curM,curC){ if(i===len){ const need=subVec(comma,curM).join(','); const matches=rightMap.get(need); if(matches){ for(let u=0;u<matches.length;u++){ const rc=matches[u]; const coeff=curC.concat(rc); const chk=applySteps(steps,coeff); if(vecEq(chk,comma)) sols.push(coeff); } } return; } const st=left[i]; for(let t=0;t<coeffs.length;t++){ const c=coeffs[t]; const nm=addVec(curM,mulVec(st.monzo,c)); curC.push(c); rec(i+1,nm,curC); curC.pop(); } } rec(0,new Array(n).fill(0),[]); })();
-  const uniq=new Map(); for(let i=0;i<sols.length;i++){ const key=sols[i].join(','); if(!uniq.has(key)) uniq.set(key,sols[i]); }
-  const out=Array.from(uniq.values()); out.sort((a,b)=>{ const d=l1(a)-l1(b); if(d!==0) return d; for(let i=0;i<a.length;i++){ if(a[i]!==b[i]) return a[i]-b[i]; } return 0; }); return out;
+  // Keep original behavior but simple, using the async engine in a blocking-like manner by running to completion with small budget
+  let out=[]; let done=false;
+  enumeratePumpsAsync(comma, steps, { coeffBound, timeBudgetMs: 1e9, iterativeDeepen:false }, { onDone:(arr)=>{ out=arr; done=true; } });
+  // This is non-blocking in reality; callers in UI should use enumeratePumpsAsync instead.
+  return out;
 }

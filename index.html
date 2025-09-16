@@ -98,6 +98,16 @@
 
     <h3 style="margin-top:14px;">Comma Pumps (selected comma)</h3>
     <div class="hint">Each row solves <span class="mono">S·x = c</span> exactly.</div>
+    <div id="pumpProgress" class="progress" style="display:none;">
+      <div class="row">
+        <div class="bar"><div class="fill" style="width:0%"></div></div>
+        <div class="eta" id="pumpEta">ETA: —</div>
+      </div>
+      <div class="row">
+        <div class="status" id="pumpStatus">Waiting…</div>
+        <button id="pumpCancel" class="secondary small">Cancel</button>
+      </div>
+    </div>
     <table id="pumpTable" style="margin-top:8px;"><thead><tr>
       <th>#</th><th>Step Recipe (x)</th><th>L1</th><th>Monzo Check</th>
     </tr></thead><tbody></tbody></table>
@@ -108,12 +118,7 @@
   </section>
 </main>
 
-<!-- Busy overlay for long-running operations -->
-<div id="busyOverlay" class="busy-overlay" style="display:none;">
-  <div class="busy-box">
-    <div id="busyText">Working…</div>
-  </div>
-  </div>
+<!-- (busy overlay removed: we rely on inline progress UI) -->
 
 <script type="module" src="src/main.js"></script>
 </body>

@@ -41,6 +41,12 @@ th{ color:var(--muted); font-weight:600; }
 .kpi .n{ font-size:18px; font-weight:800; color:var(--ok); }
 details{ margin-top:12px; }
 
-/* Busy overlay */
-.busy-overlay{ position:fixed; inset:0; background:rgba(6, 10, 26, 0.6); backdrop-filter:blur(2px); display:flex; align-items:center; justify-content:center; z-index:1000; }
-.busy-box{ background:#0d1022; border:1px solid var(--border); padding:14px 18px; border-radius:12px; color:var(--fg); box-shadow:0 6px 24px rgba(0,0,0,0.4); }
+/* (busy overlay removed) */
+
+.progress{ border:1px solid #ddd; padding:8px; border-radius:6px; margin:8px 0; background:#fafafa; }
+.progress .row{ display:flex; align-items:center; gap:10px; margin:4px 0; }
+.progress .bar{ flex:1; height:8px; background:#eee; border-radius:999px; overflow:hidden; }
+.progress .bar .fill{ height:8px; background:#2a7; width:0%; transition: width 0.12s linear; }
+.progress .eta{ font-size:12px; color:#666; min-width:80px; text-align:right; }
+.progress .status{ font-size:12px; color:#444; flex:1; }
+.progress .small{ padding:4px 8px; font-size:12px; }
