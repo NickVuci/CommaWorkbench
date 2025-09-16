@@ -1,106 +1,12 @@
-/* ===== Utilities ===== */
-var LN2 = Math.log(2);
-function gcd(a,b){ a=Math.abs(a); b=Math.abs(b); while(b){ var t=a%b; a=b; b=t; } return a||1; }
-function l1(v){ return v.reduce(function(s,x){ return s+Math.abs(x); }, 0); }
-function vecEq(a,b){ if(a.length!==b.length) return false; for(var i=0;i<a.length;i++){ if(a[i]!==b[i]) return false; } return true; }
-function range(a,b){ var arr=[]; for(var x=a;x<=b;x++) arr.push(x); return arr; }
-function normalizePrimitiveMonzo(v){ var g=v.reduce(function(gg,x){ return gcd(gg,x); },0); if(g===0) return v.slice(); var u=v.map(function(x){ return x/g; }); var i=-1; for(var k=0;k<u.length;k++){ if(u[k]!==0){ i=k; break; } } if(i>=0 && u[i]<0) return u.map(function(x){ return -x; }); return u; }
-function centsFromMonzo(mz, primes){ var s=0; for(var i=0;i<mz.length;i++){ s += mz[i] * Math.log(primes[i]) / LN2; } return 1200*s; }
+import { l1, vecEq } from './core/number.js';
+import { applySteps, centsFromMonzo } from './core/monzo.js';
+import { parsePrimeInput } from './core/primes.js';
+import { generateIntervalsForVocabulary } from './theory/intervals.js';
+import { enumerateNotableCommas } from './theory/commas.js';
+import { edosTemperingComma } from './theory/edos.js';
+import { enumeratePumps } from './theory/pumps.js';
 
-/* ===== Prime input parsing ===== */
-function parsePrimeInput(text){
-  var t = String(text).trim();
-  if(!t) return [2,3,5];
-  if(t.indexOf(',')>=0){
-    var parts = t.split(',').map(function(s){ return Number(s.trim()); }).filter(function(x){ return x>1 && isFinite(x); });
-    // unique + sort
-    var uniq = [];
-    parts.forEach(function(p){ if(uniq.indexOf(p)<0) uniq.push(p); });
-    uniq.sort(function(a,b){ return a-b; });
-    return uniq;
-  } else {
-    var P = Number(t);
-    if (!isFinite(P) || P<2) return [2,3,5];
-    // build full prime limit up to P (simple sieve over first few primes)
-    var base = [2,3,5,7,11,13,17,19,23,29,31];
-    var out = [];
-    for(var i=0;i<base.length;i++){ if(base[i] <= P) out.push(base[i]); }
-    if(out.length===0) out=[2];
-    return out;
-  }
-}
-
-/* ===== Interval generation (odd limit) ===== */
-function factorToMonzo(num, den, primes){
-  var exps = new Array(primes.length); for(var i=0;i<exps.length;i++) exps[i]=0;
-  var n=num, d=den;
-  for(var i=0;i<primes.length;i++){
-    var p=primes[i];
-    while(n%p===0){ n/=p; exps[i]++; }
-    while(d%p===0){ d/=p; exps[i]--; }
-  }
-  if(n!==1 || d!==1) return null;
-  return exps;
-}
-function reduceOdd(n){ while(n%2===0) n/=2; return n; }
-function oddLimitOK(num, den, maxOdd){ return Math.max(reduceOdd(num), reduceOdd(den)) <= maxOdd; }
-function generateIntervalsForVocabulary(primes, oddLimit, maxCount){
-  var items=[]; var seen=new Set();
-  var maxNumDen = oddLimit; // search space bounded by odd limit
-  for(var num=1; num<=maxNumDen; num++){
-    for(var den=1; den<=maxNumDen; den++){
-      if(gcd(num,den)!==1) continue;
-      if(num===den) continue;
-      if(!oddLimitOK(num,den,oddLimit)) continue;
-      var monzo = factorToMonzo(num,den,primes); if(!monzo) continue;
-      // confine to one octave: 1/2 < ratio < 2
-      var ratio = num/den; if(ratio<=0.5 || ratio>=2) continue;
-      var key = monzo.join(','); if(seen.has(key)) continue; seen.add(key);
-      var cents = 1200*Math.log(ratio)/LN2; if(cents<0) cents = -cents; if(cents<1e-9) continue;
-      items.push({ name:String(num)+'/'+String(den)+' ('+String(cents.toFixed(2))+'¢)', monzo:monzo, cents:Math.abs(cents) });
-    }
-  }
-  items.sort(function(a,b){ return (a.cents-b.cents) || (l1(a.monzo)-l1(b.monzo)); });
-  if(items.length>maxCount) items = items.slice(0,maxCount);
-  return items;
-}
-
-/* ===== EDO / commas / pumps ===== */
-function enumerateNotableCommas(primes, expBound, maxCents){
-  var n=primes.length; var out=[]; var seen=new Set();
-  var exps=[]; for(var i=0;i<n;i++) exps.push(range(-expBound,expBound));
-  function rec(i,cur){
-    if(i===n){
-      var allZero=true; for(var t=0;t<cur.length;t++){ if(cur[t]!==0){ allZero=false; break; } }
-      if(allZero) return;
-      var cents = Math.abs(centsFromMonzo(cur,primes)); if(cents>maxCents) return;
-      var prim = normalizePrimitiveMonzo(cur); var key = prim.join(','); if(seen.has(key)) return; seen.add(key);
-      out.push({ monzo:prim, cents:+cents.toFixed(3) }); return;
-    }
-    for(var j=0;j<exps[i].length;j++){ var e=exps[i][j]; var next=cur.slice(); next.push(e); rec(i+1,next); }
-  }
-  rec(0,[]); out.sort(function(a,b){ return (a.cents-b.cents) || (l1(a.monzo)-l1(b.monzo)); }); return out;
-}
-function edoVal(N,primes){ return primes.map(function(p){ return Math.round(N * Math.log(p)/LN2); }); }
-function edosTemperingComma(c,primes,Nmin,Nmax){ var list=[]; for(var N=Nmin;N<=Nmax;N++){ var v=edoVal(N,primes); var s=0; for(var i=0;i<c.length;i++) s+=v[i]*c[i]; if(s===0) list.push(N); } return list; }
-function enumeratePumps(comma, steps, coeffBound){
-  var n=comma.length; var k=steps.length; if(k===0) return [];
-  var mid=Math.floor(k/2); var left=steps.slice(0,mid); var right=steps.slice(mid);
-  function addVec(a,b){ var r=a.slice(); for(var i=0;i<r.length;i++) r[i]+=b[i]; return r; }
-  function mulVec(v,s){ return v.map(function(x){ return x*s; }); }
-  function subVec(a,b){ var r=a.slice(); for(var i=0;i<r.length;i++) r[i]-=b[i]; return r; }
-  var coeffs=range(-coeffBound,coeffBound);
-  var rightMap=new Map();
-  (function buildRight(){
-    var len=right.length; function rec(i,curM,curC){ if(i===len){ var key=curM.join(','); if(!rightMap.has(key)) rightMap.set(key,[]); rightMap.get(key).push(curC.slice()); return; }
-      var st=right[i]; for(var t=0;t<coeffs.length;t++){ var c=coeffs[t]; var nm=addVec(curM,mulVec(st.monzo,c)); curC.push(c); rec(i+1,nm,curC); curC.pop(); } }
-    rec(0,new Array(n).fill(0),[]);
-  })();
-  var sols=[]; (function leftSearch(){ var len=left.length; function rec(i,curM,curC){ if(i===len){ var need=subVec(comma,curM).join(','); var matches=rightMap.get(need); if(matches){ for(var u=0;u<matches.length;u++){ var rc=matches[u]; var coeff=curC.concat(rc); var chk=applySteps(steps,coeff); if(vecEq(chk,comma)) sols.push(coeff); } } return; } var st=left[i]; for(var t=0;t<coeffs.length;t++){ var c=coeffs[t]; var nm=addVec(curM,mulVec(st.monzo,c)); curC.push(c); rec(i+1,nm,curC); curC.pop(); } } rec(0,new Array(n).fill(0),[]); })();
-  var uniq=new Map(); for(var i=0;i<sols.length;i++){ var key=sols[i].join(','); if(!uniq.has(key)) uniq.set(key,sols[i]); }
-  var out=Array.from(uniq.values()); out.sort(function(a,b){ var d=l1(a)-l1(b); if(d!==0) return d; for(var i=0;i<a.length;i++){ if(a[i]!==b[i]) return a[i]-b[i]; } return 0; }); return out;
-}
-function applySteps(steps, coeff){ var n=steps[0].monzo.length; var out=new Array(n).fill(0); for(var j=0;j<steps.length;j++){ var c=coeff[j]; var s=steps[j].monzo; for(var i=0;i<n;i++) out[i]+=c*s[i]; } return out; }
+/* imports replace previous in-file implementations */
 
 /* ===== UI state ===== */
 var stepsChips = document.getElementById('stepsChips');
