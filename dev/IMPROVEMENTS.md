@@ -14,7 +14,7 @@ This document tracks quick wins and larger enhancements. Ordered roughly by cost
 - Effort: Small
 - Impact: High
 - Details: Disable Run/Pumps while searching; show busy indicator; catch long runs.
-- Status: Todo.
+- Status: Implemented.
 
 ## 3) Wire “Sort pumps by” selector
 - Effort: Small

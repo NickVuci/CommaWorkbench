@@ -23,6 +23,11 @@ var commaTableBody = document.querySelector('#commaTable tbody');
 var kpiCommas = document.getElementById('kpiCommas');
 var kpiPairs  = document.getElementById('kpiPairs');
 var kpiPumps  = document.getElementById('kpiPumps');
+var busyOverlay = document.getElementById('busyOverlay');
+var runBtn = document.getElementById('runBtn');
+var clearBtn = document.getElementById('clearBtn');
+var testBtn = document.getElementById('testBtn');
+var busyTextEl = document.getElementById('busyText');
 var lastCommas=[]; var lastMatches=new Map(); var generatedSteps=[];
 
 // Handle pump button clicks emitted as custom events from the comma table
@@ -44,18 +49,29 @@ function renderCommas(primes){
   renderCommaTable(commaTableBody, lastCommas, primes, lastMatches);
 }
 
+function showBusy(text){ if(busyTextEl) busyTextEl.textContent = text||'Working…'; if(busyOverlay) busyOverlay.style.display='flex'; }
+function hideBusy(){ if(busyOverlay) busyOverlay.style.display='none'; }
+
 function onSelectComma(idx){
-  var primes = parsePrimeInput(primeInput.value);
-  var steps = stepsSelected(); var coeffBound = Number(document.getElementById('coeffBound').value)||6;
-  var c = lastCommas[idx].monzo; var pumps = enumeratePumps(c, steps, coeffBound); kpiPumps.textContent=String(pumps.length);
-  renderPumpTable(pumpTableBody, steps, pumps, c);
+  showBusy('Finding pumps…');
+  // Defer heavy work to next tick to allow overlay to paint
+  setTimeout(function(){
+    try{
+      var primes = parsePrimeInput(primeInput.value);
+      var steps = stepsSelected(); var coeffBound = Number(document.getElementById('coeffBound').value)||6;
+      var c = lastCommas[idx].monzo; var pumps = enumeratePumps(c, steps, coeffBound); kpiPumps.textContent=String(pumps.length);
+      renderPumpTable(pumpTableBody, steps, pumps, c);
+    } finally {
+      hideBusy();
+    }
+  }, 0);
 }
 
 /* ===== Orchestration ===== */
 document.getElementById('regenStepsBtn').addEventListener('click', function(){ buildStepsChips(); });
 document.getElementById('clearStepsBtn').addEventListener('click', function(){ var boxes=stepsChips.querySelectorAll('input[type=checkbox]'); for(var i=0;i<boxes.length;i++){ boxes[i].checked=false; } });
 
-document.getElementById('runBtn').addEventListener('click', function(){
+runBtn.addEventListener('click', function(){
   var primes = parsePrimeInput(primeInput.value);
   if (primes.length<2){ alert('Provide at least two primes. Example: 5  (≙ 2,3,5)'); return; }
   // Keep the steps vocabulary in sync with current primes/odd limit when running a query
@@ -64,9 +80,20 @@ document.getElementById('runBtn').addEventListener('click', function(){
   var maxCents = Number(document.getElementById('maxCents').value)||30;
   var Nmin = Number(document.getElementById('edoMin').value)||5;
   var Nmax = Number(document.getElementById('edoMax').value)||72;
-  lastCommas = enumerateNotableCommas(primes, expBound, maxCents);
-  lastMatches = new Map(); var pairCount=0; for(var i=0;i<lastCommas.length;i++){ var c=lastCommas[i]; var ed=edosTemperingComma(c.monzo,primes,Nmin,Nmax); lastMatches.set(c.monzo.join(','),ed); pairCount+=ed.length; }
-  kpiCommas.textContent=String(lastCommas.length); kpiPairs.textContent=String(pairCount); renderCommas(primes); pumpTableBody.innerHTML=''; kpiPumps.textContent='0';
+  // Show busy state and disable interacting controls during computation
+  showBusy('Enumerating commas…');
+  runBtn.disabled=true; clearBtn.disabled=true; testBtn.disabled=true;
+  // Defer heavy work to next tick to allow overlay to paint
+  setTimeout(function(){
+    try{
+      lastCommas = enumerateNotableCommas(primes, expBound, maxCents);
+      lastMatches = new Map(); var pairCount=0; for(var i=0;i<lastCommas.length;i++){ var c=lastCommas[i]; var ed=edosTemperingComma(c.monzo,primes,Nmin,Nmax); lastMatches.set(c.monzo.join(','),ed); pairCount+=ed.length; }
+      kpiCommas.textContent=String(lastCommas.length); kpiPairs.textContent=String(pairCount); renderCommas(primes); pumpTableBody.innerHTML=''; kpiPumps.textContent='0';
+    } finally {
+      hideBusy();
+      runBtn.disabled=false; clearBtn.disabled=false; testBtn.disabled=false;
+    }
+  }, 0);
 });
 
 document.getElementById('clearBtn').addEventListener('click', function(){ commaTableBody.innerHTML=''; pumpTableBody.innerHTML=''; kpiCommas.textContent='0'; kpiPairs.textContent='0'; kpiPumps.textContent='0'; });

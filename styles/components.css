@@ -40,3 +40,7 @@ th{ color:var(--muted); font-weight:600; }
 .kpi div{ background:#0d1022; border:1px solid var(--border); padding:10px; border-radius:12px; text-align:center; }
 .kpi .n{ font-size:18px; font-weight:800; color:var(--ok); }
 details{ margin-top:12px; }
+
+/* Busy overlay */
+.busy-overlay{ position:fixed; inset:0; background:rgba(6, 10, 26, 0.6); backdrop-filter:blur(2px); display:flex; align-items:center; justify-content:center; z-index:1000; }
+.busy-box{ background:#0d1022; border:1px solid var(--border); padding:14px 18px; border-radius:12px; color:var(--fg); box-shadow:0 6px 24px rgba(0,0,0,0.4); }
