@@ -20,6 +20,8 @@ export function generateIntervalsForVocabulary(primes, oddLimit, maxCount){
     for(let den=1; den<=maxNumDen; den++){
       if(gcd(num,den)!==1) continue;
       if(num===den) continue;
+      // Only include intervals where numerator > denominator (exclude sub-unison ratios like 2/3)
+      if(!(num>den)) continue;
       if(!oddLimitOK(num,den,oddLimit)) continue;
       const monzo = factorToMonzo(num,den,primes); if(!monzo) continue;
       const ratio = num/den; if(ratio<=0.5 || ratio>=2) continue;

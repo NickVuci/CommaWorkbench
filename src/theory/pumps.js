@@ -42,11 +42,13 @@ function violatesReach(targetDelta, reach){
   return false;
 }
 
-function scoreStepsForOrdering(steps, comma){
+function orderStepsWithIndex(steps, comma){
   // score(s_j) = |dot(s_j, c)| / (||s_j||_1 + 1e-9)
-  return steps.slice().map(s=>({ s, sc: (Math.abs(s.monzo.reduce((p,x,idx)=> p + x*(comma[idx]||0), 0))) / (s.monzo.reduce((p,x)=> p + Math.abs(x),0) + 1e-9) }))
-    .sort((a,b)=> b.sc - a.sc)
-    .map(o=> o.s);
+  const scored = steps.map((s,idx)=>({ idx, s, sc: (Math.abs(s.monzo.reduce((p,x,i)=> p + x*(comma[i]||0), 0))) / (s.monzo.reduce((p,x)=> p + Math.abs(x),0) + 1e-9) }));
+  scored.sort((a,b)=> b.sc - a.sc);
+  const order = scored.map(o=> o.idx);
+  const orderedSteps = scored.map(o=> o.s);
+  return { order, orderedSteps };
 }
 
 // Async, chunked MITM enumeration with safeguards
@@ -59,8 +61,9 @@ export function enumeratePumpsAsync(comma, steps, options, callbacks){
   const k = steps.length; if(k===0){ cb.onDone([], { reason:'no-steps'}); return { cancel: ()=>{} } }
   const n = comma.length;
 
-  // Step ordering
-  const orderedSteps = scoreStepsForOrdering(steps, comma);
+  // Step ordering (internal), but we will return coeffs in original order
+  const { order, orderedSteps } = orderStepsWithIndex(steps, comma);
+  function toOriginalOrder(coeffOrdered){ const arr = new Array(steps.length); for(let j=0;j<order.length;j++){ arr[order[j]] = coeffOrdered[j]; } return arr; }
 
   // Feasibility and reach pre-checks
   if(!isFeasibleByRowGCD(comma, orderedSteps)){
@@ -70,17 +73,17 @@ export function enumeratePumpsAsync(comma, steps, options, callbacks){
 
   let cancelled=false; const started=performance.now();
   const maxSolutions = opts.maxSolutions;
-  const bestMap = new Map(); // key -> coeff array
-  const bestArr = []; // keep sorted by L1 asc, stable
+  const bestMap = new Map(); // key (original order) -> coeff array (original order)
+  const bestArr = []; // arrays in original order; keep sorted by L1 asc, stable
 
-  function considerSolution(coeff){
-    const key = coeff.join(',');
+  function considerSolution(coeffOriginal){
+    const key = coeffOriginal.join(',');
     if(bestMap.has(key)) return false;
-    bestMap.set(key, coeff);
+    bestMap.set(key, coeffOriginal);
     // Insert into bestArr sorted by L1 (stable)
-    const L = l1(coeff);
-    let pos = bestArr.findIndex(e=> l1(e) > L);
-    if(pos===-1) bestArr.push(coeff); else bestArr.splice(pos,0,coeff);
+    const L = l1(coeffOriginal);
+    let pos = bestArr.findIndex(e=> l1(e) > L); // simple linear insert; K is small
+    if(pos===-1) bestArr.push(coeffOriginal); else bestArr.splice(pos,0,coeffOriginal);
     if(bestArr.length>maxSolutions){ bestArr.pop(); }
     return true;
   }
@@ -132,7 +135,8 @@ export function enumeratePumpsAsync(comma, steps, options, callbacks){
               const coeff = fr.curC.concat(rc);
               const chk = applySteps(orderedSteps, coeff);
               if(vecEq(chk, comma)){
-                if(considerSolution(coeff)) batchFound.push(coeff);
+                const orig = toOriginalOrder(coeff);
+                if(considerSolution(orig)) batchFound.push(orig);
                 if(bestArr.length>=maxSolutions) { /* keep going but will return capped */ }
               }
             }

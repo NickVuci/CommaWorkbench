@@ -117,6 +117,7 @@ function onSelectComma(idx){
 
 /* ===== Orchestration ===== */
 document.getElementById('regenStepsBtn').addEventListener('click', function(){ buildStepsChips(); });
+document.getElementById('selectAllStepsBtn').addEventListener('click', function(){ var boxes=stepsChips.querySelectorAll('input[type=checkbox]'); for(var i=0;i<boxes.length;i++){ boxes[i].checked=true; } });
 document.getElementById('clearStepsBtn').addEventListener('click', function(){ var boxes=stepsChips.querySelectorAll('input[type=checkbox]'); for(var i=0;i<boxes.length;i++){ boxes[i].checked=false; } });
 
 runBtn.addEventListener('click', function(){
