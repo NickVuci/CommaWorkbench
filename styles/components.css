@@ -33,6 +33,7 @@ button.secondary{ background:#2b335e; color:var(--fg); }
 .chips{ display:flex; flex-wrap:wrap; gap:8px; }
 .chip{ background:#23284a; border:1px solid var(--border); padding:6px 10px; border-radius:999px; font-size:12px; display:flex; align-items:center; gap:6px; }
 .chip input{ transform:scale(1.05); }
+.equivalences{ display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
 table{ width:100%; border-collapse:collapse; font-size:13px; }
 th,td{ border-bottom:1px solid var(--border); padding:8px 6px; vertical-align:top; text-align:left; }
 th{ color:var(--muted); font-weight:600; }

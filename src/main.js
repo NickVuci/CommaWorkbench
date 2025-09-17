@@ -7,7 +7,7 @@ import { edosTemperingComma } from './theory/edos.js';
 import { enumeratePumpsAsync } from './theory/pumps.js';
 import { buildStepsChips as buildStepsChipsUI, stepsSelected as stepsSelectedUI } from './ui/stepsUI.js';
 import { renderCommaTable } from './ui/commaTable.js';
-import { renderPumpTable } from './ui/pumpTable.js';
+import { renderPumpTable, renderPumpEquivalences } from './ui/pumpTable.js';
 import { renderTestResults } from './ui/testsUI.js';
 import { runSelfTests } from './tests/selfTests.js';
 
@@ -23,6 +23,7 @@ var pumpProgress = document.getElementById('pumpProgress');
 var pumpCancelBtn = document.getElementById('pumpCancel');
 var pumpEtaEl = document.getElementById('pumpEta');
 var pumpStatusEl = document.getElementById('pumpStatus');
+var pumpEquivalencesEl = document.getElementById('pumpEquivalences');
 var commaTableBody = document.querySelector('#commaTable tbody');
 var kpiCommas = document.getElementById('kpiCommas');
 var kpiPairs  = document.getElementById('kpiPairs');
@@ -68,6 +69,9 @@ function onSelectComma(idx){
     var coeffBound = Number(document.getElementById('coeffBound').value)||6;
     var c = lastCommas[idx].monzo;
 
+    // Show equivalences implied by the comma and selected steps
+    renderPumpEquivalences(pumpEquivalencesEl, steps, c);
+
     // Pre-run estimate and confirmation
     var k = steps.length; if(k===0){ hideBusy(); if(pumpProgress) pumpProgress.style.display='none'; return; }
     var estWork = Math.pow(2*coeffBound+1, Math.floor(k/2));
@@ -103,10 +107,11 @@ function onSelectComma(idx){
     // Start async enumeration
     cancelHandle = enumeratePumpsAsync(c, steps, { coeffBound, /* no cap or time limit by default */ chunkMs: 12, iterativeDeepen: true }, {
       onProgress: (meta)=>{ updateProgress(meta); },
-      onBatch: (pumps)=>{ kpiPumps.textContent=String(pumps.length); renderPumpTable(pumpTableBody, steps, pumps, c); },
+      onBatch: (pumps)=>{ kpiPumps.textContent=String(pumps.length); renderPumpTable(pumpTableBody, steps, pumps, c); renderPumpEquivalences(pumpEquivalencesEl, steps, c); },
       onDone: (final, meta)=>{
         running=false; setCancelEnabled(false);
         kpiPumps.textContent=String(final.length); renderPumpTable(pumpTableBody, steps, final, c);
+        renderPumpEquivalences(pumpEquivalencesEl, steps, c);
         var note = meta.partial? (meta.reason==='time-budget'? 'Partial (time capped)':'Partial (cancelled)') : (meta.capped? 'Capped at max' : 'Complete');
         pumpStatusEl.textContent = note + ' • ' + String(final.length)+' shown';
         if(pumpProgress) pumpProgress.style.display='none';
