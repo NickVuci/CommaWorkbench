@@ -72,6 +72,7 @@ function onSelectComma(idx){
     var primes = parsePrimeInput(primeInput.value);
     var steps = stepsSelected();
     var coeffBound = Number(document.getElementById('coeffBound').value)||6;
+  var l1Cap = Number(document.getElementById('maxL1Steps').value)||Infinity;
     var c = lastCommas[idx].monzo;
 
   // Show equivalences implied by the comma and selected steps at the start only
@@ -113,7 +114,7 @@ function onSelectComma(idx){
   if(pumpCancelBtn){ pumpCancelBtn.onclick = onCancel; }
 
     // Start async enumeration
-    cancelHandle = enumeratePumpsAsync(c, steps, { coeffBound, /* no cap or time limit by default */ chunkMs: 12, iterativeDeepen: true }, {
+  cancelHandle = enumeratePumpsAsync(c, steps, { coeffBound, l1Cap, /* no cap or time limit by default */ chunkMs: 12, iterativeDeepen: true }, {
       onProgress: (meta)=>{ updateProgress(meta); },
       onBatch: (pumps)=>{ if(runId !== currentPumpRunId) return; kpiPumps.textContent=String(pumps.length); renderPumpTable(pumpTableBody, steps, pumps, c); },
       onDone: (final, meta)=>{

@@ -55,7 +55,7 @@ function orderStepsWithIndex(steps, comma){
 // options: { coeffBound, maxSolutions=Infinity, timeBudgetMs=Infinity, chunkMs=12, iterativeDeepen=true }
 // callbacks: { onProgress(meta), onBatch(pumps), onDone(finalPumps, meta) }
 export function enumeratePumpsAsync(comma, steps, options, callbacks){
-  const opts = Object.assign({ maxSolutions: Infinity, timeBudgetMs: Infinity, chunkMs:12, iterativeDeepen:true }, options||{});
+  const opts = Object.assign({ maxSolutions: Infinity, timeBudgetMs: Infinity, chunkMs:12, iterativeDeepen:true, l1Cap: Infinity }, options||{});
   const cb = Object.assign({ onProgress:()=>{}, onBatch:()=>{}, onDone:()=>{} }, callbacks||{});
 
   const k = steps.length; if(k===0){ cb.onDone([], { reason:'no-steps'}); return { cancel: ()=>{} } }
@@ -79,9 +79,10 @@ export function enumeratePumpsAsync(comma, steps, options, callbacks){
   function considerSolution(coeffOriginal){
     const key = coeffOriginal.join(',');
     if(bestMap.has(key)) return false;
-    bestMap.set(key, coeffOriginal);
     // Insert into bestArr sorted by L1 (stable)
     const L = l1(coeffOriginal);
+    if(L > opts.l1Cap) return false;
+    bestMap.set(key, coeffOriginal);
     let pos = bestArr.findIndex(e=> l1(e) > L); // simple linear insert; K is small
     if(pos===-1) bestArr.push(coeffOriginal); else bestArr.splice(pos,0,coeffOriginal);
     if(Number.isFinite(maxSolutions) && bestArr.length>maxSolutions){ bestArr.pop(); }
@@ -176,7 +177,8 @@ export function enumeratePumpsAsync(comma, steps, options, callbacks){
   // Iterative deepening over B if requested
   const Bmax = opts.coeffBound||6;
   const coeffsByB = new Map();
-  function getCoeffs(B){ if(!coeffsByB.has(B)) coeffsByB.set(B, range(-B,B)); return coeffsByB.get(B); }
+  function zeroCenteredRange(B){ const out=[0]; for(let t=1;t<=B;t++){ out.push(t,-t); } return out; }
+  function getCoeffs(B){ if(!coeffsByB.has(B)) coeffsByB.set(B, zeroCenteredRange(B)); return coeffsByB.get(B); }
 
   let currentB = opts.iterativeDeepen ? Math.min(2, Bmax) : Bmax;
   let phase = 'build+search'; // interleaved for early results
