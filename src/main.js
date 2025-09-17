@@ -24,6 +24,9 @@ var pumpCancelBtn = document.getElementById('pumpCancel');
 var pumpEtaEl = document.getElementById('pumpEta');
 var pumpStatusEl = document.getElementById('pumpStatus');
 var pumpEquivalencesEl = document.getElementById('pumpEquivalences');
+// Track the currently active pump search to avoid stale UI updates
+var currentPumpRunId = 0;
+var currentPumpCancel = null;
 var commaTableBody = document.querySelector('#commaTable tbody');
 var kpiCommas = document.getElementById('kpiCommas');
 var kpiPairs  = document.getElementById('kpiPairs');
@@ -56,6 +59,8 @@ function renderCommas(primes){
 
 function onSelectComma(idx){
   // Prepare UI
+  // Cancel any previous pump run to avoid interleaved updates
+  if(currentPumpCancel){ try{ currentPumpCancel(); }catch(e){} currentPumpCancel = null; }
   pumpTableBody.innerHTML='';
   kpiPumps.textContent='0';
   pumpEtaEl.textContent='ETA: —';
@@ -69,11 +74,11 @@ function onSelectComma(idx){
     var coeffBound = Number(document.getElementById('coeffBound').value)||6;
     var c = lastCommas[idx].monzo;
 
-    // Show equivalences implied by the comma and selected steps
-    renderPumpEquivalences(pumpEquivalencesEl, steps, c);
+  // Show equivalences implied by the comma and selected steps at the start only
+  renderPumpEquivalences(pumpEquivalencesEl, steps, c);
 
     // Pre-run estimate and confirmation
-    var k = steps.length; if(k===0){ hideBusy(); if(pumpProgress) pumpProgress.style.display='none'; return; }
+  var k = steps.length; if(k===0){ if(pumpProgress) pumpProgress.style.display='none'; return; }
     var estWork = Math.pow(2*coeffBound+1, Math.floor(k/2));
     // crude calibration to time (ms): scale factor beta; adjust if needed
     var beta = 0.02; // ms per unit (tunable)
@@ -83,12 +88,15 @@ function onSelectComma(idx){
       if(!go){ if(pumpProgress) pumpProgress.style.display='none'; return; }
     }
 
+    // Stamp this run so only latest updates touch the UI
+    var runId = (++currentPumpRunId);
     var start = performance.now();
     var lastProgressTs = start;
     var cancelHandle = null;
     var running = true;
 
     function updateProgress(meta){
+      if(runId !== currentPumpRunId) return; // ignore stale
       var now = performance.now();
       var elapsed = now - start;
       // percent based on B progress if iterative, or time-based fallback
@@ -101,22 +109,23 @@ function onSelectComma(idx){
     // Wire cancel button
     function setCancelEnabled(e){ if(pumpCancelBtn) pumpCancelBtn.disabled = !e; }
     setCancelEnabled(true);
-    function onCancel(){ if(cancelHandle){ cancelHandle.cancel(); setCancelEnabled(false); pumpStatusEl.textContent+=' • cancelling…'; } }
+    function onCancel(){ if(runId !== currentPumpRunId) return; if(currentPumpCancel){ currentPumpCancel(); setCancelEnabled(false); pumpStatusEl.textContent+=' • cancelling…'; } }
   if(pumpCancelBtn){ pumpCancelBtn.onclick = onCancel; }
 
     // Start async enumeration
     cancelHandle = enumeratePumpsAsync(c, steps, { coeffBound, /* no cap or time limit by default */ chunkMs: 12, iterativeDeepen: true }, {
       onProgress: (meta)=>{ updateProgress(meta); },
-      onBatch: (pumps)=>{ kpiPumps.textContent=String(pumps.length); renderPumpTable(pumpTableBody, steps, pumps, c); renderPumpEquivalences(pumpEquivalencesEl, steps, c); },
+      onBatch: (pumps)=>{ if(runId !== currentPumpRunId) return; kpiPumps.textContent=String(pumps.length); renderPumpTable(pumpTableBody, steps, pumps, c); },
       onDone: (final, meta)=>{
-        running=false; setCancelEnabled(false);
+        if(runId !== currentPumpRunId) return; running=false; setCancelEnabled(false); currentPumpCancel = null;
         kpiPumps.textContent=String(final.length); renderPumpTable(pumpTableBody, steps, final, c);
-        renderPumpEquivalences(pumpEquivalencesEl, steps, c);
         var note = meta.partial? (meta.reason==='time-budget'? 'Partial (time capped)':'Partial (cancelled)') : (meta.capped? 'Capped at max' : 'Complete');
         pumpStatusEl.textContent = note + ' • ' + String(final.length)+' shown';
         if(pumpProgress) pumpProgress.style.display='none';
       }
     });
+    // Expose cancel for this run so new runs can cancel the previous one
+    currentPumpCancel = cancelHandle && cancelHandle.cancel ? cancelHandle.cancel : null;
   }, 0);
 }
 

@@ -16,28 +16,33 @@ export function renderPumpTable(tbodyEl, steps, pumps, comma){
   }
 }
 
-// Render simple equivalences "a=b" where step_i and step_j differ by the comma monzo
+// Compute simple equivalences "a=b" where step_i and step_j differ by the comma monzo
+export function findStepEquivalences(steps, comma){
+  const n = steps.length; if(n<2) return [];
+  const eq = [];
+  const keyOf = (mz)=> mz.join(',');
+  const keyMinus = (mz)=> mz.map((v,i)=> v - (comma[i]||0));
+  const keyPlus  = (mz)=> mz.map((v,i)=> v + (comma[i]||0));
+  // Build lookup from monzo key to index
+  const indexByKey = new Map();
+  for(let i=0;i<n;i++){ indexByKey.set(keyOf(steps[i].monzo), i); }
+  for(let i=0;i<n;i++){
+    const si = steps[i].monzo;
+    const kMinus = keyOf(keyMinus(si));
+    const j1 = indexByKey.get(kMinus);
+    if(j1!==undefined && j1>i){ eq.push(steps[i].name.split(' ')[0] + '=' + steps[j1].name.split(' ')[0]); }
+    const kPlus = keyOf(keyPlus(si));
+    const j2 = indexByKey.get(kPlus);
+    if(j2!==undefined && j2>i){ eq.push(steps[j2].name.split(' ')[0] + '=' + steps[i].name.split(' ')[0]); }
+  }
+  return eq;
+}
+
+// Render simple equivalences using findStepEquivalences
 export function renderPumpEquivalences(containerEl, steps, comma){
   if(!containerEl) return;
   containerEl.innerHTML='';
-  const n = steps.length; if(n<2){ containerEl.style.display='none'; return; }
-  const eq = [];
-  function monzoEq(a,b){ if(a.length!==b.length) return false; for(let i=0;i<a.length;i++){ if(a[i]!==b[i]) return false; } return true; }
-  // We want steps i and j such that steps[i].monzo - steps[j].monzo == comma OR == -comma
-  for(let i=0;i<n;i++){
-    for(let j=i+1;j<n;j++){
-      const si = steps[i].monzo, sj = steps[j].monzo;
-      const diff = si.map((v,idx)=> v - (sj[idx]||0));
-      if(monzoEq(diff, comma)){
-        eq.push(steps[i].name.split(' ')[0] + '=' + steps[j].name.split(' ')[0]);
-      } else {
-        const diff2 = sj.map((v,idx)=> v - (si[idx]||0));
-        if(monzoEq(diff2, comma)){
-          eq.push(steps[j].name.split(' ')[0] + '=' + steps[i].name.split(' ')[0]);
-        }
-      }
-    }
-  }
+  const eq = findStepEquivalences(steps, comma);
   if(eq.length===0){ containerEl.style.display='none'; return; }
   containerEl.style.display='block';
   eq.slice(0,24).forEach(txt=>{
