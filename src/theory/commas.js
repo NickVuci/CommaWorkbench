@@ -8,9 +8,16 @@ export function enumerateNotableCommas(primes, expBound, maxCents){
     if(i===n){
       let allZero=true; for(let t=0;t<cur.length;t++){ if(cur[t]!==0){ allZero=false; break; } }
       if(allZero) return;
-      const cents = Math.abs(centsFromMonzo(cur,primes)); if(cents>maxCents) return;
-      const prim = normalizePrimitiveMonzo(cur); const key = prim.join(','); if(seen.has(key)) return; seen.add(key);
-      out.push({ monzo:prim, cents:+cents.toFixed(3) }); return;
+      // Normalize to primitive first
+      let prim = normalizePrimitiveMonzo(cur);
+      // Orient by cents: make cents non-negative
+      let signed = centsFromMonzo(prim,primes);
+      const centsAbs = Math.abs(signed);
+      if(centsAbs>maxCents) return;
+      if(signed < 0){ prim = prim.map(x=> -x); signed = -signed; }
+      const key = prim.join(',');
+      if(seen.has(key)) return; seen.add(key);
+      out.push({ monzo:prim, cents:+signed.toFixed(3) }); return;
     }
     for(let j=0;j<exps[i].length;j++){ const e=exps[i][j]; const next=cur.slice(); next.push(e); rec(i+1,next); }
   }
@@ -41,9 +48,14 @@ export function enumerateNotableCommasAsync(primes, expBound, maxCents, options,
     // skip all-zero
     let allZero=true; for(let t=0;t<vec.length;t++){ if(vec[t]!==0){ allZero=false; break; } }
     if(allZero) return;
-    const cents = Math.abs(centsFromMonzo(vec, primes)); if(cents>maxCents) return;
-    const prim = normalizePrimitiveMonzo(vec); const key = prim.join(','); if(seen.has(key)) return; seen.add(key);
-    const item = { monzo: prim, cents: +cents.toFixed(3) };
+    // Normalize then orient by cents
+    let prim = normalizePrimitiveMonzo(vec);
+    let signed = centsFromMonzo(prim, primes);
+    const centsAbs = Math.abs(signed);
+    if(centsAbs>maxCents) return;
+    if(signed < 0){ prim = prim.map(x=> -x); signed = -signed; }
+    const key = prim.join(','); if(seen.has(key)) return; seen.add(key);
+    const item = { monzo: prim, cents: +signed.toFixed(3) };
     out.push(item); batch.push(item);
   }
 
