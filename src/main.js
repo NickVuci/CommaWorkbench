@@ -7,7 +7,7 @@ import { edosTemperingComma } from './theory/edos.js';
 import { enumeratePumpsAsync } from './theory/pumps.js';
 import { buildStepsChips as buildStepsChipsUI, stepsSelected as stepsSelectedUI } from './ui/stepsUI.js';
 import { renderCommaTable } from './ui/commaTable.js';
-import { renderPumpTable, renderPumpEquivalences } from './ui/pumpTable.js';
+import { renderPumpTable, renderPumpEquivalences, canonicalizePumps } from './ui/pumpTable.js';
 import { renderTestResults } from './ui/testsUI.js';
 import { runSelfTests } from './tests/selfTests.js';
 
@@ -24,6 +24,7 @@ var pumpCancelBtn = document.getElementById('pumpCancel');
 var pumpEtaEl = document.getElementById('pumpEta');
 var pumpStatusEl = document.getElementById('pumpStatus');
 var pumpEquivalencesEl = document.getElementById('pumpEquivalences');
+var canonicalizeToggle = document.getElementById('canonicalizePumps');
 // Track the currently active pump search to avoid stale UI updates
 var currentPumpRunId = 0;
 var currentPumpCancel = null;
@@ -116,10 +117,11 @@ function onSelectComma(idx){
     // Start async enumeration
   cancelHandle = enumeratePumpsAsync(c, steps, { coeffBound, l1Cap, /* no cap or time limit by default */ chunkMs: 12, iterativeDeepen: true }, {
       onProgress: (meta)=>{ updateProgress(meta); },
-      onBatch: (pumps)=>{ if(runId !== currentPumpRunId) return; kpiPumps.textContent=String(pumps.length); renderPumpTable(pumpTableBody, steps, pumps, c); },
+  onBatch: (pumps)=>{ if(runId !== currentPumpRunId) return; const shown = canonicalizeToggle && canonicalizeToggle.checked ? canonicalizePumps(pumps, steps) : pumps; kpiPumps.textContent=String(shown.length); renderPumpTable(pumpTableBody, steps, shown, c); },
       onDone: (final, meta)=>{
         if(runId !== currentPumpRunId) return; running=false; setCancelEnabled(false); currentPumpCancel = null;
-        kpiPumps.textContent=String(final.length); renderPumpTable(pumpTableBody, steps, final, c);
+  const shown = canonicalizeToggle && canonicalizeToggle.checked ? canonicalizePumps(final, steps) : final;
+  kpiPumps.textContent=String(shown.length); renderPumpTable(pumpTableBody, steps, shown, c);
         var note = meta.partial? (meta.reason==='time-budget'? 'Partial (time capped)':'Partial (cancelled)') : (meta.capped? 'Capped at max' : 'Complete');
         pumpStatusEl.textContent = note + ' • ' + String(final.length)+' shown';
         if(pumpProgress) pumpProgress.style.display='none';
@@ -193,7 +195,8 @@ document.getElementById('testBtn').addEventListener('click', function(){
     parsePrimeInput,
     centsFromMonzo,
     edosTemperingComma,
-    generateIntervalsForVocabulary
+    generateIntervalsForVocabulary,
+    canonicalizePumps
   });
   renderTestResults(tbody, results);
 });

@@ -1,6 +1,6 @@
 // DOM-agnostic self tests; returns an array of { name, ok, notes }
 export function runSelfTests(deps){
-  const { parsePrimeInput, centsFromMonzo, edosTemperingComma, generateIntervalsForVocabulary } = deps;
+  const { parsePrimeInput, centsFromMonzo, edosTemperingComma, generateIntervalsForVocabulary, canonicalizePumps } = deps;
   const results=[];
   // Test 1
   const pA=parsePrimeInput('5'); const passA = pA.length===3 && pA[0]===2 && pA[1]===3 && pA[2]===5; results.push({ name:'parsePrimeInput("5") → 2,3,5', ok:passA, notes:'out='+pA.join(',') });
@@ -17,5 +17,38 @@ export function runSelfTests(deps){
   const missing = expected.filter(x=> !names.has(x));
   const extras = Array.from(names).filter(x=> expected.indexOf(x)<0);
   results.push({ name:'5-limit odd≤5 upward within octave', ok:missing.length===0 && extras.length===0, notes:'missing=['+missing.join(',')+'] extras=['+extras.join(',')+'] count='+String(vocab.length) });
+
+  // First page should include all six when maxCount=6
+  const page = generateIntervalsForVocabulary([2,3,5],5,6);
+  const pageNames = new Set(page.map(v=> v.name.split(' ')[0]));
+  const missPage = expected.filter(x=> !pageNames.has(x));
+  results.push({ name:'First page includes all six (5-limit, odd≤5, maxCount=6)', ok:missPage.length===0, notes:'missingOnPage=['+missPage.join(',')+']' });
+
+  // Canonicalization tests
+  try{
+    // Trivial kernel: if steps are linearly independent (e.g., distinct monzos in 2D), kernel is zero; pumps unchanged
+    const stepsTrivial = [
+      { name:'a', monzo:[1,0] },
+      { name:'b', monzo:[0,1] }
+    ];
+    const pumpsA = [ [1,0], [0,1], [2,-1] ];
+    const outA = canonicalizePumps ? canonicalizePumps(pumpsA, stepsTrivial) : pumpsA;
+    const okA = outA.length===3;
+    results.push({ name:'Canonicalization trivial kernel leaves pumps', ok:okA, notes:'count='+String(outA.length) });
+  }catch(e){ results.push({ name:'Canonicalization trivial kernel leaves pumps', ok:false, notes:'err '+String(e) }); }
+
+  try{
+    // Nontrivial kernel: if one step equals sum of others, kernel non-zero
+    // Construct steps where s3 = s1 + s2 (in monzo space), so x and x+[1,1,-1] are equivalent
+    const stepsNT = [
+      { name:'a', monzo:[1,0] },
+      { name:'b', monzo:[0,1] },
+      { name:'c', monzo:[1,1] }
+    ];
+    const pumpsB = [ [1,0,0], [0,1,0], [0,0,1], [1,1,-1] ];
+    const outB = canonicalizePumps ? canonicalizePumps(pumpsB, stepsNT) : pumpsB;
+    const okB = outB.length < pumpsB.length; // dedup happened
+    results.push({ name:'Canonicalization dedupes equivalent pumps', ok:okB, notes:'before='+pumpsB.length+' after='+outB.length });
+  }catch(e){ results.push({ name:'Canonicalization dedupes equivalent pumps', ok:false, notes:'err '+String(e) }); }
   return results;
 }
