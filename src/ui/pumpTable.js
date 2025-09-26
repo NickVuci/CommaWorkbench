@@ -56,6 +56,10 @@ export function canonicalizePumps(pumps, steps){
   const seen = new Map(); const out=[];
   for(let i=0;i<pumps.length;i++){
     const can = reduceFull(pumps[i]);
+    // If canonical form is the zero vector, it's a pure kernel element (adds no monzo)
+    // Drop it so that inputs differing only by kernel components that reduce to zero
+    // do not survive as separate pumps (matches self-test expectation: remove [1,1,-1]).
+    if(can.every(z=> z===0)) continue;
     const key = can.join(',');
     if(!seen.has(key)){ seen.set(key, true); out.push(can); }
   }
