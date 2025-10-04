@@ -17,53 +17,64 @@ export function canonicalizePumps(pumps, steps){
   if(!steps || steps.length===0) return pumps;
   const k = steps.length;
   const d = steps[0].monzo ? steps[0].monzo.length : 0;
-  // Build S as (d x k): rows = monzo dimensions, cols = steps
-  const S = d>0 ? Array.from({length:d}, (_,i)=> steps.map(s=> s.monzo[i]||0)) : null;
-  if(!S) return pumps;
+  if(d===0) return pumps;
+  // Build S as (d x k)
+  const S = Array.from({length:d}, (_,i)=> steps.map(s=> s.monzo[i]||0));
   const key = stepsKey(steps);
   let K = _kernelCache.get(key);
   if(!K){
-    // Kernel of S: rows are monzos (dim x k). Nullspace dimension >= k-dim.
-    K = integerNullspace(S); // array of basis vectors in Z^k
+    K = integerNullspace(S); // basis vectors in Z^k spanning kernel
     _kernelCache.set(key, K);
   }
-  if(!K || K.length===0) return pumps;
+  if(!K || K.length===0){
+    // No kernel: still enforce uniqueness by image (trivial here) & remove all-zero pumps
+    const uniq=[]; const seenImg=new Set();
+    for(const p of pumps){ if(p.every(z=> z===0)) continue; const img=applySteps(steps,p).join(','); if(!seenImg.has(img)){ seenImg.add(img); uniq.push(p.slice()); } }
+    return uniq;
+  }
 
   function l1Of(v){ return l1(v); }
   function vecLexCompare(a,b){ for(let i=0;i<a.length;i++){ const da=Math.abs(a[i]); const db=Math.abs(b[i]); if(da!==db) return da-db; if(a[i]!==b[i]) return a[i]-b[i]; } return 0; }
   function addScaled(v, dir, t){ const out=v.slice(); for(let i=0;i<v.length;i++) out[i]+= t*dir[i]; return out; }
   function bestAlong(v, dir){
-    // Find integer t minimizing l1(v + t*dir). This is piecewise-linear convex; optimum at median of breakpoints -v_i/dir_i.
-    // Compute candidate t0 ~ median of ratios; evaluate t0-1..t0+1 to stay integral.
-    const ratios=[]; for(let i=0;i<v.length;i++){ const d=dir[i]; if(d!==0){ ratios.push(-v[i]/d); } }
+    // Choose integer t minimizing L1(v + t*dir)
+    const ratios=[]; for(let i=0;i<v.length;i++){ const di=dir[i]; if(di!==0){ ratios.push(-v[i]/di); } }
     if(ratios.length===0) return v;
     ratios.sort((a,b)=>a-b);
     const mid = ratios[Math.floor(ratios.length/2)] || 0;
     const t0 = Math.round(mid);
     let best=v, bestL=l1Of(v);
-    for(let dt=-2; dt<=2; dt++){
+    // Probe local neighborhood (search window widened slightly for robustness)
+    for(let dt=-3; dt<=3; dt++){
       const t=t0+dt; if(!Number.isFinite(t)) continue; const cand=addScaled(v,dir,t); const L=l1Of(cand);
       if(L<bestL || (L===bestL && vecLexCompare(cand,best)<0)){ best=cand; bestL=L; }
     }
     return best;
   }
-  function reduceOnce(v){ let cur=v.slice(); for(let i=0;i<K.length;i++){ const dir=K[i]; const nxt=bestAlong(cur,dir); cur=nxt; }
-    return cur; }
-  function reduceFull(v){ let prev; let cur=v.slice(); let i=0; do{ prev=cur; cur=reduceOnce(cur); i++; if(i>16) break; }while(l1Of(cur)<l1Of(prev) || vecLexCompare(cur,prev)<0);
-    return cur; }
-
-  // Deduplicate by canonical key
-  const seen = new Map(); const out=[];
-  for(let i=0;i<pumps.length;i++){
-    const can = reduceFull(pumps[i]);
-    // If canonical form is the zero vector, it's a pure kernel element (adds no monzo)
-    // Drop it so that inputs differing only by kernel components that reduce to zero
-    // do not survive as separate pumps (matches self-test expectation: remove [1,1,-1]).
-    if(can.every(z=> z===0)) continue;
-    const key = can.join(',');
-    if(!seen.has(key)){ seen.set(key, true); out.push(can); }
+  function reduceOnce(v){ let cur=v.slice(); for(const dir of K){ cur=bestAlong(cur,dir); } return cur; }
+  function reduceFull(v){
+    // Iterate until no improvement. Remove arbitrary cap; safeguard with max based on growth in k.
+    let prev=v.slice(); let cur=reduceOnce(prev); let iter=1; const maxIter=64 + 4*K.length; // generous safety
+    while((l1Of(cur)<l1Of(prev) || vecLexCompare(cur,prev)<0) && iter<maxIter){ prev=cur; cur=reduceOnce(cur); iter++; }
+    return cur;
   }
-  // Keep sorted by L1 and lexicographic for stability
+
+  // Track best representative per image monzo (S*x). This guarantees full deduplication of equivalent pumps
+  const byImage = new Map();
+  for(const p of pumps){
+    const can = reduceFull(p);
+    if(can.every(z=> z===0)) continue; // pure kernel element
+    const img = applySteps(steps, can); // monzo image
+    const imgKey = img.join(',');
+    const existing = byImage.get(imgKey);
+    if(!existing){
+      byImage.set(imgKey, can);
+    }else{
+      const curL = l1Of(can), exL = l1Of(existing);
+      if(curL < exL || (curL===exL && vecLexCompare(can,existing)<0)) byImage.set(imgKey, can);
+    }
+  }
+  const out = Array.from(byImage.values());
   out.sort((a,b)=>{ const da=l1Of(a), db=l1Of(b); if(da!==db) return da-db; return vecLexCompare(a,b); });
   return out;
 }
