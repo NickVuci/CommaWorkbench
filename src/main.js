@@ -18,8 +18,6 @@ import { runSelfTests } from './tests/selfTests.js';
 var stepsChips = document.getElementById('stepsChips');
 var primeInput = document.getElementById('primeInput');
 var oddLimitInput = document.getElementById('oddLimit');
-var maxStepsShownInput = document.getElementById('maxStepsShown');
-var maxCentDeviationInput = document.getElementById('maxCentDeviation');
 var pumpTableBody = document.querySelector('#pumpTable tbody');
 var pumpProgress = document.getElementById('pumpProgress');
 var pumpCancelBtn = document.getElementById('pumpCancel');
@@ -77,7 +75,8 @@ if(edoApproxTolInput){
 
 function buildStepsChips(){
   var primes = parsePrimeInput(primeInput.value);
-  var oddL = Number(oddLimitInput.value)||11; var maxSteps = Number(maxStepsShownInput.value)||60;
+  var oddL = Number(oddLimitInput.value)||11;
+  var maxSteps = 60;
   allSteps = generateIntervalsForVocabulary(primes, oddL, maxSteps);
   refreshStepsView();
 }
