@@ -18,6 +18,7 @@ var stepsChips = document.getElementById('stepsChips');
 var primeInput = document.getElementById('primeInput');
 var oddLimitInput = document.getElementById('oddLimit');
 var maxStepsShownInput = document.getElementById('maxStepsShown');
+var maxCentDeviationInput = document.getElementById('maxCentDeviation');
 var pumpTableBody = document.querySelector('#pumpTable tbody');
 var pumpProgress = document.getElementById('pumpProgress');
 var pumpCancelBtn = document.getElementById('pumpCancel');
