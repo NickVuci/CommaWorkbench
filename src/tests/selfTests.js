@@ -50,5 +50,28 @@ export function runSelfTests(deps){
     const okB = outB.length < pumpsB.length; // dedup happened
     results.push({ name:'Canonicalization dedupes equivalent pumps', ok:okB, notes:'before='+pumpsB.length+' after='+outB.length });
   }catch(e){ results.push({ name:'Canonicalization dedupes equivalent pumps', ok:false, notes:'err '+String(e) }); }
+
+  // Performance test for generateIntervalsForVocabulary
+  try {
+    const start = performance.now();
+    // Use a high oddLimit to make the performance difference noticeable
+    generateIntervalsForVocabulary([2,3,5,7], 99, 400);
+    const duration = performance.now() - start;
+    // This threshold should be low enough to fail the old implementation
+    // but high enough to pass the new one reliably.
+    const thresholdMs = 100;
+    const okPerf = duration < thresholdMs;
+    results.push({
+      name: 'generateIntervalsForVocabulary performance (oddLimit=99)',
+      ok: okPerf,
+      notes: 'duration=' + duration.toFixed(1) + 'ms (threshold < ' + thresholdMs + 'ms)'
+    });
+  } catch(e) {
+    results.push({
+      name: 'generateIntervalsForVocabulary performance',
+      ok: false,
+      notes: 'err ' + String(e)
+    });
+  }
   return results;
 }

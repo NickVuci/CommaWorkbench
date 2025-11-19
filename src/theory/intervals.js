@@ -16,8 +16,8 @@ export function oddLimitOK(num, den, maxOdd){ return Math.max(reduceOdd(num), re
 export function generateIntervalsForVocabulary(primes, oddLimit, maxCount, includeUnison=false){
   const items=[]; const seen=new Set();
   // Iterate only over odd parts up to oddLimit; reintroduce powers of two to normalize into [1,2)
-  for(let oddNum=1; oddNum<=oddLimit; oddNum+=1){ if(oddNum%2===0) continue; // odd only
-    for(let oddDen=1; oddDen<=oddLimit; oddDen+=1){ if(oddDen%2===0) continue; // odd only
+  for(let oddNum=1; oddNum<=oddLimit; oddNum+=2){
+    for(let oddDen=1; oddDen<=oddLimit; oddDen+=2){
       if(gcd(oddNum, oddDen)!==1) continue;
       // Base ratio using odd parts
       const ratio0 = oddNum/oddDen;
