@@ -41,7 +41,8 @@ th{ color:var(--muted); font-weight:600; }
 .table-scroll table{ margin:0; }
 .table-scroll thead th{ position:sticky; top:0; background:var(--card); z-index:1; }
 .step-metric{ display:flex; flex-direction:column; gap:6px; }
-.step-metric .metric-label{ font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); }
+.step-metric .metric-line{ display:flex; align-items:baseline; gap:12px; }
+.step-metric .metric-label{ font-size:13px; letter-spacing:0.02em; color:var(--muted); text-transform:none; }
 .step-metric .metric-value{ font-size:26px; font-weight:800; color:var(--ok); line-height:1; }
 details{ margin-top:12px; }
 

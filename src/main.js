@@ -35,6 +35,7 @@ var edoTableBody = document.querySelector('#edoTable tbody');
 var kpiCommas = document.getElementById('kpiCommas');
 var kpiPairs  = document.getElementById('kpiPairs');
 var kpiPumps  = document.getElementById('kpiPumps');
+var kpiSteps  = document.getElementById('kpiSteps');
 var runBtn = document.getElementById('runBtn');
 var clearBtn = document.getElementById('clearBtn');
 var testBtn = document.getElementById('testBtn');
@@ -47,6 +48,7 @@ function buildStepsChips(){
   var primes = parsePrimeInput(primeInput.value);
   var oddL = Number(oddLimitInput.value)||11; var maxSteps = Number(maxStepsShownInput.value)||60;
   generatedSteps = generateIntervalsForVocabulary(primes, oddL, maxSteps);
+  if(kpiSteps) kpiSteps.textContent = String(generatedSteps.length);
   buildStepsChipsUI(stepsChips, generatedSteps, 5);
 }
 function stepsSelected(){
