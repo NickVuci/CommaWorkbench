@@ -14,125 +14,138 @@
   <div class="sub">Find notable commas → see which EDOs temper them → enumerate comma pumps (via monzos)</div>
 </header>
 <main>
-  <section class="card">
-    <h2>Setup</h2>
-
-    <label for="primeInput">Prime subgroup / limit</label>
-    <input id="primeInput" type="text" value="5" placeholder="Examples: 5  (≙ 2,3,5)   or   2,5,7" />
-    <div class="hint">Enter a single prime to use a full prime-limit (e.g., "5" → 2,3,5) or a comma-separated list for a subgroup (e.g., "2,5,7").</div>
-
-    <div class="row" style="margin-top:10px;">
-      <div>
-        <label for="oddLimit">Odd limit (for step vocabulary)</label>
-        <input id="oddLimit" type="number" value="11" min="3" max="99" />
+  <div id="inputs-column">
+    <section class="card">
+      <h2>Step 1: Find Notable Commas</h2>
+      <label for="primeInput">Prime subgroup / limit</label>
+      <input id="primeInput" type="text" value="5" placeholder="Examples: 5  (≙ 2,3,5)   or   2,5,7" />
+      <div class="hint">Enter a single prime to use a full prime-limit (e.g., "5" → 2,3,5) or a comma-separated list for a subgroup (e.g., "2,5,7").</div>
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label>Exponent bound (±)</label>
+          <input type="number" id="expBound" value="5" min="2" max="9" />
+        </div>
+        <div>
+          <label>Max comma size (cents)</label>
+          <input type="number" id="maxCents" value="30" min="5" max="60" step="1" />
+        </div>
       </div>
-      <div>
-        <label for="maxStepsShown">Max auto-steps listed</label>
-        <input id="maxStepsShown" type="number" value="60" min="10" max="400" />
+      <div class="actions">
+        <button id="runBtn">Run Query</button>
+        <button class="secondary" id="clearBtn">Clear Results</button>
       </div>
-    </div>
-
-    <div class="row" style="margin-top:10px;">
-      <div>
-        <label>Exponent bound (±)</label>
-        <input type="number" id="expBound" value="5" min="2" max="9" />
+    </section>
+    <section class="card">
+      <h2>Step 2: Analyze Commas & EDOs</h2>
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label>EDO min</label>
+          <input type="number" id="edoMin" value="5" min="2" max="120" />
+        </div>
+        <div>
+          <label>EDO max</label>
+          <input type="number" id="edoMax" value="72" min="2" max="240" />
+        </div>
       </div>
-      <div>
-        <label>Max comma size (cents)</label>
-        <input type="number" id="maxCents" value="30" min="5" max="60" step="1" />
+    </section>
+    <section class="card">
+      <h2>Step 3: Define & Filter Interval Vocabulary</h2>
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label for="oddLimit">Odd limit</label>
+          <input id="oddLimit" type="number" value="11" min="3" max="99" />
+        </div>
+        <div>
+          <label for="maxStepsShown">Max auto-steps listed</label>
+          <input id="maxStepsShown" type="number" value="60" min="10" max="400" />
+        </div>
+        <div>
+          <label for="maxCentDeviation">Max Cent Deviation</label>
+          <input id="maxCentDeviation" type="number" value="10" min="1" max="100" />
+        </div>
       </div>
-    </div>
-
-    <div class="row" style="margin-top:10px;">
-      <div>
-        <label>EDO min</label>
-        <input type="number" id="edoMin" value="5" min="2" max="120" />
+      <div class="actions" style="margin-bottom:8px;">
+        <button class="secondary" id="regenStepsBtn">Regenerate Steps</button>
+        <button class="secondary" id="selectAllStepsBtn">Select All</button>
+        <button class="secondary" id="clearStepsBtn">Clear Selection</button>
       </div>
-      <div>
-        <label>EDO max</label>
-        <input type="number" id="edoMax" value="72" min="2" max="240" />
+    </section>
+    <section class="card">
+      <h2>Step 4: Find Comma Pumps</h2>
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label>Step coefficient bound (±)</label>
+          <input type="number" id="coeffBound" value="6" min="1" max="16" />
+        </div>
+        <div>
+          <label>Sort pumps by</label>
+          <select id="pumpSort">
+            <option value="l1">L1 step count (shortest)</option>
+            <option value="lex">Lexicographic</option>
+          </select>
+        </div>
+        <div>
+          <label>Max steps (L1 cap)</label>
+          <input type="number" id="maxL1Steps" value="999" min="1" max="9999" />
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="canonicalizePumps" />
+          <label for="canonicalizePumps">Canonicalize pumps (experimental)</label>
+        </div>
       </div>
-    </div>
-
-    <div class="row" style="margin-top:10px;">
-      <div>
-        <label>Step coefficient bound (±) for pumps</label>
-        <input type="number" id="coeffBound" value="6" min="1" max="16" />
-      </div>
-      <div>
-        <label>Sort pumps by</label>
-        <select id="pumpSort">
-          <option value="l1">L1 step count (shortest)</option>
-          <option value="lex">Lexicographic</option>
-        </select>
-      </div>
-      <div>
-        <label>Max steps (L1 cap)</label>
-        <input type="number" id="maxL1Steps" value="999" min="1" max="9999" />
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <input type="checkbox" id="canonicalizePumps" />
-        <label for="canonicalizePumps">Canonicalize pumps (experimental)</label>
-      </div>
-    </div>
-
-    <h2 style="margin-top:18px;">Step Vocabulary (auto from primes + odd limit)</h2>
-    <div class="actions" style="margin-bottom:8px;">
-      <button class="secondary" id="regenStepsBtn">Regenerate Steps</button>
-      <button class="secondary" id="selectAllStepsBtn">Select All</button>
-      <button class="secondary" id="clearStepsBtn">Clear Selection</button>
-    </div>
-    <div class="chips" id="stepsChips"></div>
-    <div class="hint" style="margin-top:6px;">Auto-generated reduced ratios (within one octave) whose odd limit ≤ chosen value and factors are in your primes. Select 3–5 for nicer pumps.</div>
-
-    <div class="actions">
-      <button id="runBtn">Run Query</button>
-      <button class="secondary" id="clearBtn">Clear Results</button>
-      <button class="secondary" id="testBtn">Run Self‑Tests</button>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Results</h2>
-    <div class="kpi">
-      <div><div class="n" id="kpiCommas">0</div><div class="hint">Notable commas</div></div>
-      <div><div class="n" id="kpiPairs">0</div><div class="hint">EDO–comma matches</div></div>
-      <div><div class="n" id="kpiPumps">0</div><div class="hint">Pumps shown</div></div>
-    </div>
-
-    <h3 style="margin-top:14px;">Comma Catalog</h3>
-    <div class="table-scroll">
-    <table id="commaTable"><thead><tr>
-      <th>#</th><th>Ratio</th><th>Monzo</th><th>Cents</th><th>Tempered by EDOs</th><th>Find Pumps</th>
-    </tr></thead><tbody></tbody></table>
-    </div>
-
-    <h3 style="margin-top:14px;">Comma Pumps (selected comma)</h3>
-    <div class="hint">Each row solves <span class="mono">S·x = c</span> exactly.</div>
-  <div id="pumpEquivalences" class="equivalences" style="display:none;"></div>
-    <div id="pumpProgress" class="progress" style="display:none;">
-      <div class="row">
-        <div class="bar"><div class="fill" style="width:0%"></div></div>
-        <div class="eta" id="pumpEta">ETA: —</div>
-      </div>
-      <div class="row">
-        <div class="status" id="pumpStatus">Waiting…</div>
-        <button id="pumpCancel" class="secondary small">Cancel</button>
-      </div>
-    </div>
-    <div class="table-scroll" style="margin-top:8px;">
-    <table id="pumpTable"><thead><tr>
-      <th>#</th><th>Step Recipe (x)</th><th>L1</th><th>Monzo Check</th>
-    </tr></thead><tbody></tbody></table>
-    </div>
-
-    <details><summary>Self‑Test Results</summary>
-      <table id="testTable" style="margin-top:8px;"><thead><tr><th>#</th><th>Test</th><th>Result</th><th>Notes</th></tr></thead><tbody></tbody></table>
+    </section>
+    <details>
+      <summary>Diagnostics & Self-Tests</summary>
+      <section class="card">
+        <div class="actions">
+          <button class="secondary" id="testBtn">Run Self‑Tests</button>
+        </div>
+        <table id="testTable" style="margin-top:8px;"><thead><tr><th>#</th><th>Test</th><th>Result</th><th>Notes</th></tr></thead><tbody></tbody></table>
+      </section>
     </details>
-  </section>
+  </div>
+  <div id="results-column">
+    <section class="card">
+      <div class="kpi">
+        <div><div class="n" id="kpiCommas">0</div><div class="hint">Notable commas</div></div>
+        <div><div class="n" id="kpiPairs">0</div><div class="hint">EDO–comma matches</div></div>
+        <div><div class="n" id="kpiPumps">0</div><div class="hint">Pumps shown</div></div>
+      </div>
+    </section>
+    <section class="card">
+      <h3 style="margin-top:14px;">Comma Catalog</h3>
+      <div class="table-scroll">
+      <table id="commaTable"><thead><tr>
+        <th>#</th><th>Ratio</th><th>Monzo</th><th>Cents</th><th>Tempered by EDOs</th><th>Find Pumps</th>
+      </tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+    <section class="card">
+      <div class="chips" id="stepsChips"></div>
+      <div class="hint" style="margin-top:6px;">Auto-generated reduced ratios (within one octave) whose odd limit ≤ chosen value and factors are in your primes. Select 3–5 for nicer pumps.</div>
+    </section>
+    <section class="card">
+      <h3 style="margin-top:14px;">Comma Pumps (selected comma)</h3>
+      <div class="hint">Each row solves <span class="mono">S·x = c</span> exactly.</div>
+      <div id="pumpEquivalences" class="equivalences" style="display:none;"></div>
+      <div id="pumpProgress" class="progress" style="display:none;">
+        <div class="row">
+          <div class="bar"><div class="fill" style="width:0%"></div></div>
+          <div class="eta" id="pumpEta">ETA: —</div>
+        </div>
+        <div class="row">
+          <div class="status" id="pumpStatus">Waiting…</div>
+          <button id="pumpCancel" class="secondary small">Cancel</button>
+        </div>
+      </div>
+      <div class="table-scroll" style="margin-top:8px;">
+      <table id="pumpTable"><thead><tr>
+        <th>#</th><th>Step Recipe (x)</th><th>L1</th><th>Monzo Check</th>
+      </tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+  </div>
 </main>
-
-<!-- (busy overlay removed: we rely on inline progress UI) -->
 
 <script type="module" src="src/main.js"></script>
 </body>
