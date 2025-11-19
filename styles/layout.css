@@ -5,12 +5,28 @@ main{
 	max-width:none;
 	margin:0;
 	padding:18px;
+}
+
+.steps-grid{
 	display:grid;
-	grid-template-columns:minmax(320px, 380px) 1fr;
+	grid-template-columns:repeat(4, minmax(240px,1fr));
+	gap:18px;
+	align-items:start;
+}
+
+.step-column{
+	display:flex;
+	flex-direction:column;
 	gap:16px;
 }
 
-/* Stack columns on smaller screens if needed */
+.step-column .card{ margin-bottom:0; }
+
+/* Collapse to two columns and then one on narrow screens */
+@media (max-width: 1400px){
+	.steps-grid{ grid-template-columns:repeat(2, minmax(260px,1fr)); }
+}
+
 @media (max-width: 900px){
-	main{ grid-template-columns:1fr; }
+	.steps-grid{ grid-template-columns:1fr; }
 }

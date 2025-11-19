@@ -7,6 +7,7 @@ import { edosTemperingComma } from './theory/edos.js';
 import { enumeratePumpsAsync } from './theory/pumps.js';
 import { buildStepsChips as buildStepsChipsUI, stepsSelected as stepsSelectedUI } from './ui/stepsUI.js';
 import { renderCommaTable } from './ui/commaTable.js';
+import { renderEdoTable } from './ui/edoTable.js';
 import { renderPumpTable, renderPumpEquivalences, canonicalizePumps } from './ui/pumpTable.js';
 import { renderTestResults } from './ui/testsUI.js';
 import { runSelfTests } from './tests/selfTests.js';
@@ -30,6 +31,7 @@ var canonicalizeToggle = document.getElementById('canonicalizePumps');
 var currentPumpRunId = 0;
 var currentPumpCancel = null;
 var commaTableBody = document.querySelector('#commaTable tbody');
+var edoTableBody = document.querySelector('#edoTable tbody');
 var kpiCommas = document.getElementById('kpiCommas');
 var kpiPairs  = document.getElementById('kpiPairs');
 var kpiPumps  = document.getElementById('kpiPumps');
@@ -51,10 +53,9 @@ function stepsSelected(){
   return stepsSelectedUI(stepsChips, generatedSteps);
 }
 
-function ratioFromMonzo(mz, primes){ var num=[]; var den=[]; for(var i=0;i<mz.length;i++){ var e=mz[i], p=primes[i]; if(e>0) num.push(e===1? String(p):String(p)+'^'+String(e)); else if(e<0) den.push(e===-1? String(p):String(p)+'^'+String(-e)); } var N=num.length? num.join('·'):'1'; var D=den.length? den.join('·'):'1'; return N+'/'+D; }
-
 function renderCommas(primes){
-  renderCommaTable(commaTableBody, lastCommas, primes, lastMatches);
+  renderCommaTable(commaTableBody, lastCommas, primes);
+  renderEdoTable(edoTableBody, lastCommas, primes, lastMatches);
 }
 
 // (busy overlay removed)
@@ -185,7 +186,7 @@ runBtn.addEventListener('click', function(){
   });
 });
 
-document.getElementById('clearBtn').addEventListener('click', function(){ commaTableBody.innerHTML=''; pumpTableBody.innerHTML=''; kpiCommas.textContent='0'; kpiPairs.textContent='0'; kpiPumps.textContent='0'; });
+document.getElementById('clearBtn').addEventListener('click', function(){ commaTableBody.innerHTML=''; edoTableBody.innerHTML=''; pumpTableBody.innerHTML=''; kpiCommas.textContent='0'; kpiPairs.textContent='0'; kpiPumps.textContent='0'; });
 
 /* ===== Self-tests ===== */
 // test rendering handled in testsUI via renderTestResults; below we still assemble results inline

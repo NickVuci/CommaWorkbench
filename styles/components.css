@@ -40,9 +40,9 @@ th{ color:var(--muted); font-weight:600; }
 .table-scroll{ max-height: 320px; overflow:auto; border:1px solid var(--border); border-radius:10px; }
 .table-scroll table{ margin:0; }
 .table-scroll thead th{ position:sticky; top:0; background:var(--card); z-index:1; }
-.kpi{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:8px; }
-.kpi div{ background:#0d1022; border:1px solid var(--border); padding:10px; border-radius:12px; text-align:center; }
-.kpi .n{ font-size:18px; font-weight:800; color:var(--ok); }
+.step-metric{ display:flex; flex-direction:column; gap:6px; }
+.step-metric .metric-label{ font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); }
+.step-metric .metric-value{ font-size:26px; font-weight:800; color:var(--ok); line-height:1; }
 details{ margin-top:12px; }
 
 /* (busy overlay removed) */
