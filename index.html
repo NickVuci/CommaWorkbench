@@ -74,8 +74,10 @@
       </section>
       <section class="card dataset-card">
         <h3 style="margin-top:14px;">EDOs Tempering Selected Comma</h3>
-        <div id="edoPanel" class="edo-panel">
-          <div class="hint">Select a comma in Step 1 to inspect its EDO matches.</div>
+        <div class="table-scroll">
+          <table id="edoTable"><thead><tr>
+            <th>#</th><th>EDO</th><th>Step (¢)</th>
+          </tr></thead><tbody></tbody></table>
         </div>
       </section>
     </section>
@@ -101,6 +103,10 @@
           <div>
             <label for="maxCentDeviation">Max Cent Deviation</label>
             <input id="maxCentDeviation" type="number" value="10" min="1" max="100" />
+          </div>
+          <div>
+            <label for="edoApproxTol">EDO approximation tolerance (¢)</label>
+            <input id="edoApproxTol" type="number" value="3" min="0" max="30" step="0.5" />
           </div>
         </div>
         <div class="actions" style="margin-bottom:8px;">

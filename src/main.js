@@ -7,7 +7,7 @@ import { edosTemperingComma } from './theory/edos.js';
 import { enumeratePumpsAsync } from './theory/pumps.js';
 import { buildStepsChips as buildStepsChipsUI, stepsSelected as stepsSelectedUI } from './ui/stepsUI.js';
 import { renderCommaTable } from './ui/commaTable.js';
-import { renderEdoPanel } from './ui/edoTable.js';
+import { renderEdoTable } from './ui/edoTable.js';
 import { renderPumpTable, renderPumpEquivalences, canonicalizePumps } from './ui/pumpTable.js';
 import { renderTestResults } from './ui/testsUI.js';
 import { runSelfTests } from './tests/selfTests.js';
@@ -32,7 +32,7 @@ var runPumpsBtn = document.getElementById('runPumpsBtn');
 var currentPumpRunId = 0;
 var currentPumpCancel = null;
 var commaTableBody = document.querySelector('#commaTable tbody');
-var edoPanel = document.getElementById('edoPanel');
+var edoTableBody = document.querySelector('#edoTable tbody');
 var kpiCommas = document.getElementById('kpiCommas');
 var kpiPairs  = document.getElementById('kpiPairs');
 var kpiPumps  = document.getElementById('kpiPumps');
@@ -40,8 +40,10 @@ var kpiSteps  = document.getElementById('kpiSteps');
 var runBtn = document.getElementById('runBtn');
 var clearBtn = document.getElementById('clearBtn');
 var testBtn = document.getElementById('testBtn');
-var lastCommas=[]; var lastMatches=new Map(); var generatedSteps=[];
+var edoApproxTolInput = document.getElementById('edoApproxTol');
+var lastCommas=[]; var lastMatches=new Map(); var generatedSteps=[]; var allSteps=[];
 var selectedCommaIndex = -1;
+var selectedEdo = null;
 
 if(commaTableBody){
   commaTableBody.addEventListener('click', function(ev){
@@ -55,22 +57,56 @@ if(commaTableBody){
   });
 }
 
+if(edoTableBody){
+  edoTableBody.addEventListener('click', function(ev){
+    var target = ev.target;
+    if(!target) return;
+    var row = target.closest('tr[data-edo]');
+    if(!row) return;
+    var edo = Number(row.dataset.edo);
+    if(!Number.isFinite(edo)) return;
+    toggleSelectedEdo(edo);
+  });
+}
+
+if(edoApproxTolInput){
+  edoApproxTolInput.addEventListener('input', function(){
+    refreshStepsView();
+  });
+}
+
 function buildStepsChips(){
   var primes = parsePrimeInput(primeInput.value);
   var oddL = Number(oddLimitInput.value)||11; var maxSteps = Number(maxStepsShownInput.value)||60;
-  generatedSteps = generateIntervalsForVocabulary(primes, oddL, maxSteps);
-  if(kpiSteps) kpiSteps.textContent = String(generatedSteps.length);
-  buildStepsChipsUI(stepsChips, generatedSteps, 5);
+  allSteps = generateIntervalsForVocabulary(primes, oddL, maxSteps);
+  refreshStepsView();
 }
 function stepsSelected(){
   return stepsSelectedUI(stepsChips, generatedSteps);
+}
+
+function refreshStepsView(){
+  var filtered = allSteps? allSteps.slice():[];
+  var tol = edoApproxTolInput ? Number(edoApproxTolInput.value) : 0;
+  if(selectedEdo && filtered.length){
+    var stepSize = 1200/selectedEdo;
+    var maxDelta = Math.max(0, isNaN(tol)?0:tol);
+    filtered = filtered.filter(function(step){
+      var nearest = Math.round(step.cents / stepSize) * stepSize;
+      return Math.abs(step.cents - nearest) <= maxDelta + 1e-6;
+    });
+  }
+  generatedSteps = filtered;
+  if(kpiSteps) kpiSteps.textContent = String(generatedSteps.length);
+  var preselect = Math.min(5, generatedSteps.length);
+  buildStepsChipsUI(stepsChips, generatedSteps, preselect);
 }
 
 function renderCommas(primes){
   renderCommaTable(commaTableBody, lastCommas, primes);
   if(selectedCommaIndex >= lastCommas.length){ selectedCommaIndex = -1; }
   updateCommaSelectionHighlight();
-  updateSelectedCommaPanel(primes);
+  renderSelectedEdoTable();
 }
 
 function updateCommaSelectionHighlight(){
@@ -84,35 +120,46 @@ function updateCommaSelectionHighlight(){
   }
 }
 
-function updateSelectedCommaPanel(primes){
-  if(!edoPanel) return;
-  var primesList = primes || parsePrimeInput(primeInput.value);
-  if(selectedCommaIndex < 0 || selectedCommaIndex >= lastCommas.length){
-    renderEdoPanel(edoPanel, null, primesList, []);
-    if(kpiPairs) kpiPairs.textContent='0';
-    return;
+function renderSelectedEdoTable(){
+  if(!edoTableBody) return;
+  var edos=[];
+  if(selectedCommaIndex >=0 && selectedCommaIndex < lastCommas.length){
+    var comma = lastCommas[selectedCommaIndex];
+    var key = comma.monzo.join(',');
+    edos = lastMatches.get(key) || [];
+    if(selectedEdo && edos.indexOf(selectedEdo)===-1){ selectedEdo = null; }
+  }else{
+    selectedEdo = null;
   }
-  var comma = lastCommas[selectedCommaIndex];
-  var key = comma.monzo.join(',');
-  var edos = lastMatches.get(key) || [];
-  renderEdoPanel(edoPanel, comma, primesList, edos);
-  if(kpiPairs) kpiPairs.textContent = String(edos.length);
+  renderEdoTable(edoTableBody, edos, selectedEdo);
+  if(kpiPairs) kpiPairs.textContent = String(edos.length || 0);
+}
+
+function toggleSelectedEdo(edo){
+  if(!Number.isFinite(edo)) return;
+  selectedEdo = (selectedEdo === edo) ? null : edo;
+  renderSelectedEdoTable();
+  refreshStepsView();
 }
 
 function setSelectedComma(idx){
   if(idx<0 || idx>=lastCommas.length) return;
   if(selectedCommaIndex === idx) return;
   selectedCommaIndex = idx;
+  selectedEdo = null;
   updateCommaSelectionHighlight();
-  updateSelectedCommaPanel();
+  renderSelectedEdoTable();
+  refreshStepsView();
   cancelPumpSearch();
   clearPumpDisplays('Ready to run the pump search for the selected comma.');
 }
 
 function clearSelectedComma(){
   selectedCommaIndex = -1;
+  selectedEdo = null;
   updateCommaSelectionHighlight();
-  updateSelectedCommaPanel();
+  renderSelectedEdoTable();
+  refreshStepsView();
   cancelPumpSearch();
   clearPumpDisplays('Select a comma and rerun the pump search.');
 }
@@ -234,11 +281,13 @@ runBtn.addEventListener('click', function(){
   var primes = parsePrimeInput(primeInput.value);
   if (primes.length<2){ alert('Provide at least two primes. Example: 5  (≙ 2,3,5)'); return; }
   // Keep the steps vocabulary in sync with current primes/odd limit when running a query
+  selectedEdo = null;
   buildStepsChips();
   cancelPumpSearch();
   selectedCommaIndex = -1;
   updateCommaSelectionHighlight();
-  updateSelectedCommaPanel(primes);
+  renderSelectedEdoTable();
+  refreshStepsView();
   clearPumpDisplays('Building comma catalog…');
   var expBound = Number(document.getElementById('expBound').value)||5;
   var maxCents = Number(document.getElementById('maxCents').value)||30;
@@ -317,5 +366,5 @@ document.getElementById('testBtn').addEventListener('click', function(){
 
 /* ===== Boot ===== */
 buildStepsChips();
-updateSelectedCommaPanel(parsePrimeInput(primeInput.value));
+renderSelectedEdoTable();
 clearPumpDisplays('Select a comma and run the pump search.');
