@@ -11,18 +11,18 @@ export function runSelfTests(deps){
   // Test 4
   const edos = edosTemperingComma([-4,4,-1],[2,3,5],5,72); const has12=edos.indexOf(12)>=0; const has19=edos.indexOf(19)>=0; results.push({ name:'EDOs killing 81/80 include 12 & 19', ok:has12 && has19, notes:'found='+edos.slice(0,10).join(',')+'…' });
   // Test 5
-  const vocab = generateIntervalsForVocabulary([2,3,5],5,100);
+  const vocab = generateIntervalsForVocabulary([2,3,5],5);
   const names = new Set(vocab.map(v=> v.name.split(' ')[0]));
   const expected = ['6/5','5/4','4/3','3/2','8/5','5/3'];
   const missing = expected.filter(x=> !names.has(x));
   const extras = Array.from(names).filter(x=> expected.indexOf(x)<0);
   results.push({ name:'5-limit odd≤5 upward within octave', ok:missing.length===0 && extras.length===0, notes:'missing=['+missing.join(',')+'] extras=['+extras.join(',')+'] count='+String(vocab.length) });
 
-  // First page should include all six when maxCount=6
-  const page = generateIntervalsForVocabulary([2,3,5],5,6);
+  // First page should include all six
+  const page = generateIntervalsForVocabulary([2,3,5],5);
   const pageNames = new Set(page.map(v=> v.name.split(' ')[0]));
   const missPage = expected.filter(x=> !pageNames.has(x));
-  results.push({ name:'First page includes all six (5-limit, odd≤5, maxCount=6)', ok:missPage.length===0, notes:'missingOnPage=['+missPage.join(',')+']' });
+  results.push({ name:'First page includes all six (5-limit, odd≤5)', ok:missPage.length===0, notes:'missingOnPage=['+missPage.join(',')+']' });
 
   // Canonicalization tests
   try{

@@ -3,7 +3,7 @@ import { applySteps, centsFromMonzo } from './core/monzo.js';
 import { parsePrimeInput } from './core/primes.js';
 import { generateIntervalsForVocabulary } from './theory/intervals.js';
 import { enumerateNotableCommas, enumerateNotableCommasAsync } from './theory/commas.js';
-import { edosTemperingComma } from './theory/edos.js';
+import { edosTemperingComma, edoApprox } from './theory/edos.js';
 import { enumeratePumpsAsync } from './theory/pumps.js';
 import { buildStepsChips as buildStepsChipsUI, stepsSelected as stepsSelectedUI } from './ui/stepsUI.js';
 import { renderCommaTable } from './ui/commaTable.js';
@@ -17,7 +17,6 @@ import { runSelfTests } from './tests/selfTests.js';
 var stepsChips = document.getElementById('stepsChips');
 var primeInput = document.getElementById('primeInput');
 var oddLimitInput = document.getElementById('oddLimit');
-var maxStepsShownInput = document.getElementById('maxStepsShown');
 var maxCentDeviationInput = document.getElementById('maxCentDeviation');
 var pumpTableBody = document.querySelector('#pumpTable tbody');
 var pumpProgress = document.getElementById('pumpProgress');
@@ -43,8 +42,17 @@ commaTableBody.addEventListener('comma:pumps', function(ev){ onSelectComma(ev.de
 
 function buildStepsChips(){
   var primes = parsePrimeInput(primeInput.value);
-  var oddL = Number(oddLimitInput.value)||11; var maxSteps = Number(maxStepsShownInput.value)||60;
-  generatedSteps = generateIntervalsForVocabulary(primes, oddL, maxSteps);
+  var oddL = Number(oddLimitInput.value)||11;
+  generatedSteps = generateIntervalsForVocabulary(primes, oddL);
+  var selectedEdo = document.querySelector('#edo-list-ul li.selected');
+  if(selectedEdo){
+    var edo = Number(selectedEdo.textContent);
+    var maxCentDeviation = Number(maxCentDeviationInput.value) || 10;
+    generatedSteps = generatedSteps.filter(step => {
+      var approx = edoApprox(step.monzo, edo);
+      return Math.abs(approx.centsError) <= maxCentDeviation;
+    });
+  }
   buildStepsChipsUI(stepsChips, generatedSteps, 5);
 }
 function stepsSelected(){
@@ -57,9 +65,29 @@ function renderCommas(primes){
   renderCommaTable(commaTableBody, lastCommas, primes, lastMatches);
 }
 
+function renderEdoList(comma){
+  var edoList = document.getElementById('edo-list-ul');
+  edoList.innerHTML = '';
+  var edos = lastMatches.get(comma.monzo.join(','));
+  if(edos){
+    edos.forEach(edo => {
+      var li = document.createElement('li');
+      li.textContent = edo;
+      li.addEventListener('click', () => {
+        var selected = document.querySelector('#edo-list-ul li.selected');
+        if(selected) selected.classList.remove('selected');
+        li.classList.add('selected');
+        buildStepsChips();
+      });
+      edoList.appendChild(li);
+    });
+  }
+}
+
 // (busy overlay removed)
 
 function onSelectComma(idx){
+  renderEdoList(lastCommas[idx]);
   // Prepare UI
   // Cancel any previous pump run to avoid interleaved updates
   if(currentPumpCancel){ try{ currentPumpCancel(); }catch(e){} currentPumpCancel = null; }

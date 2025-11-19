@@ -8,7 +8,9 @@ export function buildStepsChips(containerEl, steps, preselectCount=5){
     if(i<preselectCount) box.checked=true;
     const span = document.createElement('span'); span.textContent = it.name;
     lab.appendChild(box); lab.appendChild(span); containerEl.appendChild(lab);
+    box.addEventListener('change', () => renderSelectedIntervals(containerEl, steps));
   });
+  renderSelectedIntervals(containerEl, steps);
 }
 
 export function stepsSelected(containerEl, generatedSteps){
@@ -18,4 +20,16 @@ export function stepsSelected(containerEl, generatedSteps){
     const b=boxes[i]; if(b.checked){ const idx=Number(b.value); const it=generatedSteps[idx]; if(it) out.push({ name:it.name, monzo:it.monzo }); }
   }
   return out;
+}
+
+function renderSelectedIntervals(containerEl, steps){
+  const selectedContainer = document.getElementById('selected-intervals-container');
+  clear(selectedContainer);
+  const selected = stepsSelected(containerEl, steps);
+  selected.forEach(step => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.textContent = step.name;
+    selectedContainer.appendChild(chip);
+  });
 }

@@ -13,7 +13,7 @@ export function factorToMonzo(num, den, primes){
 }
 export function reduceOdd(n){ while(n%2===0) n/=2; return n; }
 export function oddLimitOK(num, den, maxOdd){ return Math.max(reduceOdd(num), reduceOdd(den)) <= maxOdd; }
-export function generateIntervalsForVocabulary(primes, oddLimit, maxCount, includeUnison=false){
+export function generateIntervalsForVocabulary(primes, oddLimit, includeUnison=false){
   const items=[]; const seen=new Set();
   // Iterate only over odd parts up to oddLimit; reintroduce powers of two to normalize into [1,2)
   for(let oddNum=1; oddNum<=oddLimit; oddNum+=1){ if(oddNum%2===0) continue; // odd only
@@ -39,5 +39,5 @@ export function generateIntervalsForVocabulary(primes, oddLimit, maxCount, inclu
     }
   }
   items.sort((a,b)=> (a.cents-b.cents) || ((a.monzo.reduce((s,x)=>s+Math.abs(x),0)) - (b.monzo.reduce((s,x)=>s+Math.abs(x),0))));
-  return maxCount && items.length>maxCount ? items.slice(0,maxCount) : items;
+  return items;
 }
