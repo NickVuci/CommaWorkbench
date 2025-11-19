@@ -37,15 +37,88 @@ var runBtn = document.getElementById('runBtn');
 var clearBtn = document.getElementById('clearBtn');
 var testBtn = document.getElementById('testBtn');
 var lastCommas=[]; var lastMatches=new Map(); var generatedSteps=[];
+var lastPrimeKey = '';
+
+var STEPS_STORAGE_PREFIX = 'stepsSelection:';
+
+function makePrimeKey(primes){
+  return primes.length ? primes.join('-') : 'default';
+}
+
+function getCheckedChipIndices(){
+  if(!stepsChips) return null;
+  var boxes = stepsChips.querySelectorAll('input[type=checkbox]');
+  if(!boxes.length) return null;
+  var out=[];
+  for(var i=0;i<boxes.length;i++){
+    var box = boxes[i];
+    if(box.checked){
+      var idx = Number(box.value);
+      if(Number.isFinite(idx)) out.push(idx);
+    }
+  }
+  return out;
+}
+
+function sanitizeSelection(selection, maxLen){
+  if(!Array.isArray(selection)) return null;
+  var seen = new Set();
+  var out=[];
+  for(var i=0;i<selection.length;i++){
+    var idx = Number(selection[i]);
+    if(Number.isInteger(idx) && idx>=0 && idx<maxLen && !seen.has(idx)){
+      seen.add(idx);
+      out.push(idx);
+    }
+  }
+  return out;
+}
+
+function readStoredSelection(key){
+  if(!key) return null;
+  try{
+    if(typeof localStorage === 'undefined') return null;
+    var raw = localStorage.getItem(STEPS_STORAGE_PREFIX + key);
+    if(!raw) return null;
+    var parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  }catch(e){
+    return null;
+  }
+}
+
+function storeSelection(key, indices){
+  if(!key || !Array.isArray(indices)) return;
+  try{
+    if(typeof localStorage === 'undefined') return;
+    localStorage.setItem(STEPS_STORAGE_PREFIX + key, JSON.stringify(indices));
+  }catch(e){}
+}
+
+function persistCurrentSelection(){
+  var primes = parsePrimeInput(primeInput.value);
+  var key = makePrimeKey(primes);
+  var selection = getCheckedChipIndices();
+  if(selection === null) return;
+  storeSelection(key, selection);
+}
 
 // Handle pump button clicks emitted as custom events from the comma table
 commaTableBody.addEventListener('comma:pumps', function(ev){ onSelectComma(ev.detail.index); });
 
 function buildStepsChips(){
   var primes = parsePrimeInput(primeInput.value);
+  var primeKey = makePrimeKey(primes);
   var oddL = Number(oddLimitInput.value)||11; var maxSteps = Number(maxStepsShownInput.value)||60;
+  var priorSelection = getCheckedChipIndices();
+  if(priorSelection !== null) storeSelection(lastPrimeKey || primeKey, priorSelection);
+  var storedSelection = readStoredSelection(primeKey);
   generatedSteps = generateIntervalsForVocabulary(primes, oddL, maxSteps);
-  buildStepsChipsUI(stepsChips, generatedSteps, 5);
+  var selectedIndices = sanitizeSelection(priorSelection !== null ? priorSelection : storedSelection, generatedSteps.length);
+  buildStepsChipsUI(stepsChips, generatedSteps, { defaultCount:5, selectedIndices });
+  var postSelection = getCheckedChipIndices();
+  if(postSelection !== null) storeSelection(primeKey, postSelection);
+  lastPrimeKey = primeKey;
 }
 function stepsSelected(){
   return stepsSelectedUI(stepsChips, generatedSteps);
@@ -137,6 +210,14 @@ function onSelectComma(idx){
 document.getElementById('regenStepsBtn').addEventListener('click', function(){ buildStepsChips(); });
 document.getElementById('selectAllStepsBtn').addEventListener('click', function(){ var boxes=stepsChips.querySelectorAll('input[type=checkbox]'); for(var i=0;i<boxes.length;i++){ boxes[i].checked=true; } });
 document.getElementById('clearStepsBtn').addEventListener('click', function(){ var boxes=stepsChips.querySelectorAll('input[type=checkbox]'); for(var i=0;i<boxes.length;i++){ boxes[i].checked=false; } });
+if(stepsChips){
+  stepsChips.addEventListener('change', function(ev){
+    var target = ev.target;
+    if(target && target.matches && target.matches('input[type=checkbox]')){
+      persistCurrentSelection();
+    }
+  });
+}
 
 runBtn.addEventListener('click', function(){
   var primes = parsePrimeInput(primeInput.value);

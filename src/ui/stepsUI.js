@@ -1,11 +1,14 @@
 import { clear } from './dom.js';
 
-export function buildStepsChips(containerEl, steps, preselectCount=5){
+export function buildStepsChips(containerEl, steps, options){
+  const opts = options || {};
+  const defaultCount = typeof opts.defaultCount === 'number' ? opts.defaultCount : 5;
+  const explicitSelection = Array.isArray(opts.selectedIndices) ? new Set(opts.selectedIndices) : null;
   clear(containerEl);
   steps.forEach((it, i)=>{
     const lab = document.createElement('label'); lab.className='chip';
     const box = document.createElement('input'); box.type='checkbox'; box.value=String(i);
-    if(i<preselectCount) box.checked=true;
+    if(explicitSelection ? explicitSelection.has(i) : i<defaultCount) box.checked=true;
     const span = document.createElement('span'); span.textContent = it.name;
     lab.appendChild(box); lab.appendChild(span); containerEl.appendChild(lab);
   });
