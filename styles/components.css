@@ -37,6 +37,9 @@ button.secondary{ background:#2b335e; color:var(--fg); }
 table{ width:100%; border-collapse:collapse; font-size:13px; }
 th,td{ border-bottom:1px solid var(--border); padding:8px 6px; vertical-align:top; text-align:left; }
 th{ color:var(--muted); font-weight:600; }
+.comma-row{ cursor:pointer; transition:background 0.12s ease, color 0.12s ease; }
+.comma-row:hover{ background:rgba(255,255,255,0.04); }
+.comma-row.selected{ background:rgba(76,116,255,0.18); box-shadow:inset 0 0 0 1px rgba(76,116,255,0.5); }
 .table-scroll{ max-height: 320px; overflow:auto; border:1px solid var(--border); border-radius:10px; }
 .table-scroll table{ margin:0; }
 .table-scroll thead th{ position:sticky; top:0; background:var(--card); z-index:1; }
@@ -44,6 +47,13 @@ th{ color:var(--muted); font-weight:600; }
 .step-metric .metric-line{ display:flex; align-items:baseline; gap:12px; }
 .step-metric .metric-label{ font-size:13px; letter-spacing:0.02em; color:var(--muted); text-transform:none; }
 .step-metric .metric-value{ font-size:26px; font-weight:800; color:var(--ok); line-height:1; }
+.edo-panel{ display:flex; flex-direction:column; gap:12px; margin-top:8px; }
+.selected-comma-meta{ display:grid; grid-template-columns:repeat(auto-fit, minmax(120px,1fr)); gap:10px; }
+.selected-comma-meta .label{ font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); }
+.selected-comma-meta .value{ font-size:14px; font-weight:600; color:var(--fg); }
+.edo-list{ display:flex; flex-wrap:wrap; gap:8px; }
+.edo-pill{ background:#23284a; border:1px solid var(--border); border-radius:999px; padding:5px 11px; font-size:12px; color:var(--fg); }
+.edo-panel .empty{ font-size:13px; color:var(--muted); }
 details{ margin-top:12px; }
 
 /* (busy overlay removed) */

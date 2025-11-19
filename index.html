@@ -46,7 +46,7 @@
         <h3 style="margin-top:14px;">Comma Catalog</h3>
         <div class="table-scroll">
           <table id="commaTable"><thead><tr>
-            <th>#</th><th>Ratio</th><th>Monzo</th><th>Cents</th><th>Find Pumps</th>
+            <th>#</th><th>Ratio</th><th>Monzo</th><th>Cents</th>
           </tr></thead><tbody></tbody></table>
         </div>
       </section>
@@ -73,11 +73,9 @@
         </div>
       </section>
       <section class="card dataset-card">
-        <h3 style="margin-top:14px;">EDOs Tempering Each Comma</h3>
-        <div class="table-scroll">
-          <table id="edoTable"><thead><tr>
-            <th>#</th><th>Comma</th><th>EDOs Tempering</th>
-          </tr></thead><tbody></tbody></table>
+        <h3 style="margin-top:14px;">EDOs Tempering Selected Comma</h3>
+        <div id="edoPanel" class="edo-panel">
+          <div class="hint">Select a comma in Step 1 to inspect its EDO matches.</div>
         </div>
       </section>
     </section>
@@ -148,6 +146,10 @@
             <label for="canonicalizePumps">Canonicalize pumps (experimental)</label>
           </div>
         </div>
+        <div class="actions" style="margin-top:10px;">
+          <button id="runPumpsBtn">Run Pump Search</button>
+        </div>
+        <div class="hint">Select a comma in Step 1, adjust your vocabulary in Step 3, then run the pump search.</div>
       </section>
       <section class="card dataset-card">
         <h3 style="margin-top:14px;">Comma Pumps (selected comma)</h3>

@@ -17,25 +17,20 @@ export function renderCommaTable(tbodyEl, commas, primes){
   if(!commas || commas.length===0){
     const tr=document.createElement('tr');
     const td=document.createElement('td');
-    td.colSpan=5; td.className='hint';
+    td.colSpan=4; td.className='hint';
     td.textContent='No commas found for these settings. Try increasing exponent bound or max cents, or include prime 3 in the subgroup.';
     tr.appendChild(td); tbodyEl.appendChild(tr);
     return;
   }
   commas.forEach((row, idx)=>{
     const tr = document.createElement('tr');
+    tr.dataset.index = String(idx);
+    tr.classList.add('comma-row');
     const td1=document.createElement('td'); td1.textContent=String(idx+1);
     const td2=document.createElement('td'); td2.className='mono'; td2.textContent=ratioFromMonzo(row.monzo,primes);
     const td3=document.createElement('td'); td3.className='mono'; td3.textContent='<'+row.monzo.join(', ')+'>';
     const td4=document.createElement('td'); td4.textContent=String(row.cents.toFixed(3));
-    const td5=document.createElement('td');
-    const btn=document.createElement('button'); btn.className='secondary'; btn.textContent='Pumps'; btn.setAttribute('data-index', String(idx));
-    btn.addEventListener('click', ()=>{
-      const ev = new CustomEvent('comma:pumps', { detail:{ index: idx }, bubbles:true });
-      tbodyEl.dispatchEvent(ev);
-    });
-    td5.appendChild(btn);
-    tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4); tr.appendChild(td5);
+    tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
     tbodyEl.appendChild(tr);
   });
 }

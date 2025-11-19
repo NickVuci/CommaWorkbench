@@ -1,29 +1,51 @@
 import { clear } from './dom.js';
 import { ratioFromMonzo } from './commaTable.js';
 
-export function renderEdoTable(tbodyEl, commas, primes, edoMatches){
-  if(!tbodyEl) return;
-  clear(tbodyEl);
-  if(!commas || commas.length===0){
-    const tr=document.createElement('tr');
-    const td=document.createElement('td');
-    td.colSpan=3; td.className='hint';
-    td.textContent='Run a comma search to list the EDOs that temper each result.';
-    tr.appendChild(td); tbodyEl.appendChild(tr);
+export function renderEdoPanel(panelEl, comma, primes, edoList){
+  if(!panelEl) return;
+  clear(panelEl);
+  if(!comma){
+    const hint=document.createElement('div');
+    hint.className='hint';
+    hint.textContent='Select a comma in Step 1 to inspect the EDOs that temper it.';
+    panelEl.appendChild(hint);
     return;
   }
-  commas.forEach((row, idx)=>{
-    const edos = edoMatches.get(row.monzo.join(','))||[];
-    const tr=document.createElement('tr');
-    const td1=document.createElement('td'); td1.textContent=String(idx+1);
-    const td2=document.createElement('td'); td2.className='mono'; td2.textContent=ratioFromMonzo(row.monzo, primes);
-    const td3=document.createElement('td');
-    if(edos.length){ td3.textContent=edos.join(', '); }
-    else {
-      const span=document.createElement('span'); span.className='hint'; span.textContent='none in range';
-      td3.appendChild(span);
-    }
-    tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
-    tbodyEl.appendChild(tr);
-  });
+
+  const ratio = ratioFromMonzo(comma.monzo, primes);
+  const meta=document.createElement('div'); meta.className='selected-comma-meta';
+  meta.appendChild(metaBlock('Ratio', ratio, true));
+  meta.appendChild(metaBlock('Monzo', '<'+comma.monzo.join(', ')+'>', true));
+  meta.appendChild(metaBlock('Size', String(comma.cents.toFixed(3))+'¢', false));
+  panelEl.appendChild(meta);
+
+  const edoHeader=document.createElement('div');
+  edoHeader.className='hint';
+  edoHeader.textContent='Tempered by';
+  panelEl.appendChild(edoHeader);
+
+  const edosContainer=document.createElement('div');
+  edosContainer.className='edo-list';
+  if(edoList && edoList.length){
+    edoList.forEach((edo)=>{
+      const pill=document.createElement('div');
+      pill.className='edo-pill';
+      pill.textContent=String(edo)+'-EDO';
+      edosContainer.appendChild(pill);
+    });
+  }else{
+    const empty=document.createElement('div');
+    empty.className='empty';
+    empty.textContent='No EDOs in the configured range temper this comma.';
+    edosContainer.appendChild(empty);
+  }
+  panelEl.appendChild(edosContainer);
+}
+
+function metaBlock(label, value, mono){
+  const wrap=document.createElement('div');
+  const lab=document.createElement('div'); lab.className='label'; lab.textContent=label;
+  const val=document.createElement('div'); val.className='value'+(mono?' mono':''); val.textContent=value;
+  wrap.appendChild(lab); wrap.appendChild(val);
+  return wrap;
 }
