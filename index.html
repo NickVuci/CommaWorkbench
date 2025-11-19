@@ -14,8 +14,8 @@
   <div class="sub">Find notable commas → see which EDOs temper them → enumerate comma pumps (via monzos)</div>
 </header>
 <main>
-  <div id="inputs-column">
-    <section class="card">
+  <section class="column" id="comma-column">
+    <section class="card column-header">
       <h2>Step 1: Find Notable Commas</h2>
       <label for="primeInput">Prime subgroup / limit</label>
       <input id="primeInput" type="text" value="5" placeholder="Examples: 5  (≙ 2,3,5)   or   2,5,7" />
@@ -35,7 +35,20 @@
         <button class="secondary" id="clearBtn">Clear Results</button>
       </div>
     </section>
-    <section class="card">
+    <section class="card column-list">
+      <h3 style="margin-top:14px;">Comma Catalog</h3>
+      <div class="list-scroll">
+        <div class="table-scroll">
+        <table id="commaTable"><thead><tr>
+          <th>#</th><th>Ratio</th><th>Monzo</th><th>Cents</th><th>Tempered by EDOs</th><th>Find Pumps</th>
+        </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <section class="column" id="edo-column">
+    <section class="card column-header">
       <h2>Step 2: Analyze Commas & EDOs</h2>
       <div class="row" style="margin-top:10px;">
         <div>
@@ -48,7 +61,20 @@
         </div>
       </div>
     </section>
-    <section class="card">
+    <section class="card column-list">
+      <h3 style="margin-top:14px;">EDO Coverage</h3>
+      <div class="list-scroll">
+        <div class="kpi">
+          <div><div class="n" id="kpiCommas">0</div><div class="hint">Notable commas</div></div>
+          <div><div class="n" id="kpiPairs">0</div><div class="hint">EDO–comma matches</div></div>
+          <div><div class="n" id="kpiPumps">0</div><div class="hint">Pumps shown</div></div>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <section class="column" id="interval-column">
+    <section class="card column-header">
       <h2>Step 3: Define & Filter Interval Vocabulary</h2>
       <div class="row" style="margin-top:10px;">
         <div>
@@ -70,7 +96,17 @@
         <button class="secondary" id="clearStepsBtn">Clear Selection</button>
       </div>
     </section>
-    <section class="card">
+    <section class="card column-list">
+      <h3 style="margin-top:14px;">Interval Vocabulary</h3>
+      <div class="list-scroll">
+        <div class="chips" id="stepsChips"></div>
+        <div class="hint" style="margin-top:6px;">Auto-generated reduced ratios (within one octave) whose odd limit ≤ chosen value and factors are in your primes. Select 3–5 for nicer pumps.</div>
+      </div>
+    </section>
+  </section>
+
+  <section class="column column-wide" id="pump-column">
+    <section class="card column-header">
       <h2>Step 4: Find Comma Pumps</h2>
       <div class="row" style="margin-top:10px;">
         <div>
@@ -94,58 +130,40 @@
         </div>
       </div>
     </section>
-    <details>
-      <summary>Diagnostics & Self-Tests</summary>
-      <section class="card">
-        <div class="actions">
-          <button class="secondary" id="testBtn">Run Self‑Tests</button>
-        </div>
-        <table id="testTable" style="margin-top:8px;"><thead><tr><th>#</th><th>Test</th><th>Result</th><th>Notes</th></tr></thead><tbody></tbody></table>
-      </section>
-    </details>
-  </div>
-  <div id="results-column">
-    <section class="card">
-      <div class="kpi">
-        <div><div class="n" id="kpiCommas">0</div><div class="hint">Notable commas</div></div>
-        <div><div class="n" id="kpiPairs">0</div><div class="hint">EDO–comma matches</div></div>
-        <div><div class="n" id="kpiPumps">0</div><div class="hint">Pumps shown</div></div>
-      </div>
-    </section>
-    <section class="card">
-      <h3 style="margin-top:14px;">Comma Catalog</h3>
-      <div class="table-scroll">
-      <table id="commaTable"><thead><tr>
-        <th>#</th><th>Ratio</th><th>Monzo</th><th>Cents</th><th>Tempered by EDOs</th><th>Find Pumps</th>
-      </tr></thead><tbody></tbody></table>
-      </div>
-    </section>
-    <section class="card">
-      <div class="chips" id="stepsChips"></div>
-      <div class="hint" style="margin-top:6px;">Auto-generated reduced ratios (within one octave) whose odd limit ≤ chosen value and factors are in your primes. Select 3–5 for nicer pumps.</div>
-    </section>
-    <section class="card">
+    <section class="card column-list">
       <h3 style="margin-top:14px;">Comma Pumps (selected comma)</h3>
       <div class="hint">Each row solves <span class="mono">S·x = c</span> exactly.</div>
-      <div id="pumpEquivalences" class="equivalences" style="display:none;"></div>
-      <div id="pumpProgress" class="progress" style="display:none;">
-        <div class="row">
-          <div class="bar"><div class="fill" style="width:0%"></div></div>
-          <div class="eta" id="pumpEta">ETA: —</div>
+      <div class="list-scroll">
+        <div id="pumpEquivalences" class="equivalences" style="display:none;"></div>
+        <div id="pumpProgress" class="progress" style="display:none;">
+          <div class="row">
+            <div class="bar"><div class="fill" style="width:0%"></div></div>
+            <div class="eta" id="pumpEta">ETA: —</div>
+          </div>
+          <div class="row">
+            <div class="status" id="pumpStatus">Waiting…</div>
+            <button id="pumpCancel" class="secondary small">Cancel</button>
+          </div>
         </div>
-        <div class="row">
-          <div class="status" id="pumpStatus">Waiting…</div>
-          <button id="pumpCancel" class="secondary small">Cancel</button>
+        <div class="table-scroll" style="margin-top:8px;">
+        <table id="pumpTable"><thead><tr>
+          <th>#</th><th>Step Recipe (x)</th><th>L1</th><th>Monzo Check</th>
+        </tr></thead><tbody></tbody></table>
         </div>
-      </div>
-      <div class="table-scroll" style="margin-top:8px;">
-      <table id="pumpTable"><thead><tr>
-        <th>#</th><th>Step Recipe (x)</th><th>L1</th><th>Monzo Check</th>
-      </tr></thead><tbody></tbody></table>
       </div>
     </section>
-  </div>
+  </section>
 </main>
+
+<details>
+  <summary>Diagnostics & Self-Tests</summary>
+  <section class="card">
+    <div class="actions">
+      <button class="secondary" id="testBtn">Run Self‑Tests</button>
+    </div>
+    <table id="testTable" style="margin-top:8px;"><thead><tr><th>#</th><th>Test</th><th>Result</th><th>Notes</th></tr></thead><tbody></tbody></table>
+  </section>
+</details>
 
 <script type="module" src="src/main.js"></script>
 </body>

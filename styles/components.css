@@ -45,6 +45,8 @@ th{ color:var(--muted); font-weight:600; }
 .kpi .n{ font-size:18px; font-weight:800; color:var(--ok); }
 details{ margin-top:12px; }
 
+.column-list .table-scroll{ max-height:none; flex:1; }
+
 /* (busy overlay removed) */
 
 .progress{ border:1px solid #ddd; padding:8px; border-radius:6px; margin:8px 0; background:#fafafa; }
