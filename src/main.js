@@ -1,3 +1,62 @@
+if(pumpPreviewPanel){
+  pumpPreviewPanel.addEventListener('click', function(ev){
+    var chip = ev.target.closest('.preview-modes .chip');
+    if(chip && chip.dataset.mode){
+      onPreviewModeChange(chip.dataset.mode);
+    }
+  });
+  pumpPreviewPanel.addEventListener('keydown', function(ev){
+    if(ev.key === 'Enter' || ev.key === ' '){
+      var chip = ev.target.closest('.preview-modes .chip');
+      if(chip && chip.dataset.mode){
+        ev.preventDefault();
+        onPreviewModeChange(chip.dataset.mode);
+      }
+    }
+  });
+}
+
+function onPreviewModeChange(mode){
+  if(mode === 'edo' && !Number.isFinite(selectedEdo)) return;
+  if(mode !== 'ji' && mode !== 'edo') return;
+  pumpPreviewMode = mode;
+  refreshPumpPreviewPanel();
+  updatePlaybackControls();
+}
+
+function triggerPumpPlayback(action){
+  if(action !== 'play') return;
+  if(selectedPumpIndex < 0 || selectedPumpIndex >= lastPumpSolutions.length) return;
+  if(pumpPreviewMode === 'edo' && !Number.isFinite(selectedEdo)) return;
+  var walk = lastPumpWalk;
+  if(!walk || !walk.points || walk.points.length===0){
+    walk = buildPumpWalk(lastPumpSolutions[selectedPumpIndex], lastPumpSteps, { edo: Number.isFinite(selectedEdo)? selectedEdo : null, basePitchHz: pumpPreviewBaseHz });
+    lastPumpWalk = walk;
+  }
+  playPump(walk, {
+    mode: pumpPreviewMode,
+    loop: pumpPreviewLoopToggle && pumpPreviewLoopToggle.checked,
+    noteDuration: 0.6,
+    release: 0.08
+  });
+  updatePlaybackControls();
+}
+
+function updatePlaybackControls(){
+  var hasPump = selectedPumpIndex >=0 && selectedPumpIndex < lastPumpSolutions.length;
+  var playback = getPlaybackState();
+  var playing = !!playback;
+  if(pumpPreviewPlayBtn) pumpPreviewPlayBtn.disabled = !hasPump;
+  if(pumpPreviewStopBtn) pumpPreviewStopBtn.disabled = !playing;
+  if(pumpPreviewLoopToggle) pumpPreviewLoopToggle.disabled = !hasPump;
+  if(pumpPreviewPanel){
+    var chips = pumpPreviewPanel.querySelectorAll('.preview-modes .chip');
+    chips.forEach(function(chip){
+      chip.classList.toggle('active', chip.dataset.mode === pumpPreviewMode);
+      chip.classList.toggle('muted', chip.dataset.mode === 'edo' && !Number.isFinite(selectedEdo));
+    });
+  }
+}
 import { l1, vecEq } from './core/number.js';
 import { applySteps, centsFromMonzo } from './core/monzo.js';
 import { parsePrimeInput } from './core/primes.js';
@@ -11,6 +70,7 @@ import { renderEdoTable } from './ui/edoTable.js';
 import { renderPumpTable, renderPumpEquivalences, canonicalizePumps } from './ui/pumpTable.js';
 import { initPumpPreviewPanel } from './ui/pumpPreviewPanel.js';
 import { buildPumpWalk } from './theory/pumpWalk.js';
+import { playPump, stopPump, getPlaybackState } from './audio/pumpPreview.js';
 import { renderTestResults } from './ui/testsUI.js';
 import { runSelfTests } from './tests/selfTests.js';
 
@@ -29,6 +89,9 @@ var pumpEquivalencesEl = document.getElementById('pumpEquivalences');
 var pumpPreviewPanel = document.getElementById('pumpPreviewPanel');
 var pumpPreviewUI = initPumpPreviewPanel(pumpPreviewPanel);
 var pumpPreviewBaseHzInput = document.getElementById('pumpPreviewBaseHz');
+var pumpPreviewPlayBtn = document.getElementById('pumpPreviewPlay');
+var pumpPreviewStopBtn = document.getElementById('pumpPreviewStop');
+var pumpPreviewLoopToggle = document.getElementById('pumpPreviewLoop');
 var canonicalizeToggle = document.getElementById('canonicalizePumps');
 var runPumpsBtn = document.getElementById('runPumpsBtn');
 // Track the currently active pump search to avoid stale UI updates
@@ -52,6 +115,8 @@ var lastPumpSolutions = [];
 var lastPumpSteps = [];
 var lastPumpCommaMeta = null;
 var pumpPreviewBaseHz = pumpPreviewBaseHzInput ? Number(pumpPreviewBaseHzInput.value) || 440 : 440;
+var pumpPreviewMode = 'ji';
+var lastPumpWalk = null;
 
 if(commaTableBody){
   commaTableBody.addEventListener('click', function(ev){
@@ -105,6 +170,25 @@ if(pumpPreviewBaseHzInput){
     if(!Number.isFinite(next) || next <= 0) return;
     pumpPreviewBaseHz = next;
     refreshPumpPreviewPanel();
+  });
+}
+
+if(pumpPreviewPlayBtn){
+  pumpPreviewPlayBtn.addEventListener('click', function(){
+    triggerPumpPlayback('play');
+  });
+}
+
+if(pumpPreviewStopBtn){
+  pumpPreviewStopBtn.addEventListener('click', function(){
+    stopPump();
+    updatePlaybackControls();
+  });
+}
+
+if(pumpPreviewLoopToggle){
+  pumpPreviewLoopToggle.addEventListener('change', function(){
+    updatePlaybackControls();
   });
 }
 
@@ -172,6 +256,9 @@ function renderSelectedEdoTable(){
 function toggleSelectedEdo(edo){
   if(!Number.isFinite(edo)) return;
   selectedEdo = (selectedEdo === edo) ? null : edo;
+  if(!Number.isFinite(selectedEdo) && pumpPreviewMode === 'edo'){
+    pumpPreviewMode = 'ji';
+  }
   renderSelectedEdoTable();
   refreshStepsView();
   refreshPumpPreviewPanel();
@@ -201,12 +288,14 @@ function clearSelectedComma(){
 
 function setSelectedPump(idx){
   if(idx<0 || idx>=lastPumpSolutions.length) return;
+  stopPump();
   selectedPumpIndex = idx;
   updatePumpSelectionHighlight();
   refreshPumpPreviewPanel();
 }
 
 function clearSelectedPump(){
+  stopPump();
   selectedPumpIndex = -1;
   updatePumpSelectionHighlight();
   refreshPumpPreviewPanel();
@@ -227,22 +316,28 @@ function refreshPumpPreviewPanel(){
   if(!pumpPreviewUI) return;
   var edoEnabled = Number.isFinite(selectedEdo);
   if(selectedPumpIndex < 0 || selectedPumpIndex >= lastPumpSolutions.length){
+    lastPumpWalk = null;
     pumpPreviewUI.showIdle({ edoEnabled: edoEnabled, edoValue: selectedEdo });
+    updatePlaybackControls();
     return;
   }
   var pump = lastPumpSolutions[selectedPumpIndex];
   var titleParts = ['Pump #'+String(selectedPumpIndex+1)];
   if(lastPumpCommaMeta && lastPumpCommaMeta.ratio){ titleParts.push(lastPumpCommaMeta.ratio); }
   var title = titleParts.join(' • ');
-  var walkData = buildPumpWalk(pump, lastPumpSteps, { edo: selectedEdo, basePitchHz: pumpPreviewBaseHz });
+  var walkEdo = Number.isFinite(selectedEdo) ? selectedEdo : null;
+  var walkData = buildPumpWalk(pump, lastPumpSteps, { edo: walkEdo, basePitchHz: pumpPreviewBaseHz });
+  lastPumpWalk = walkData;
   pumpPreviewUI.showPump({
     pump: pump,
     steps: lastPumpSteps,
     edoEnabled: edoEnabled,
     edoValue: selectedEdo,
     title: title,
-    walk: walkData
+    walk: walkData,
+    mode: pumpPreviewMode
   });
+  updatePlaybackControls();
 }
 
 function cancelPumpSearch(){
@@ -252,6 +347,8 @@ function cancelPumpSearch(){
     currentPumpCancel = null;
   }
   if(runPumpsBtn) runPumpsBtn.disabled = false;
+  stopPump();
+  updatePlaybackControls();
 }
 
 function clearPumpDisplays(message){
@@ -265,6 +362,8 @@ function clearPumpDisplays(message){
   lastPumpSteps = [];
   lastPumpCommaMeta = null;
   selectedPumpIndex = -1;
+  lastPumpWalk = null;
+  stopPump();
   refreshPumpPreviewPanel();
 }
 
@@ -287,6 +386,8 @@ function runPumpSearchForComma(idx){
   lastPumpSolutions = [];
   lastPumpSteps = [];
   lastPumpCommaMeta = lastCommas[idx] || null;
+  lastPumpWalk = null;
+  stopPump();
   refreshPumpPreviewPanel();
 
   // Defer to allow overlay to paint

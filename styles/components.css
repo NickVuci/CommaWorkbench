@@ -59,6 +59,15 @@
 	color: rgba(0,0,0,0.4);
 }
 
+.pump-preview-panel .preview-modes .chip {
+	cursor: pointer;
+}
+
+.pump-preview-panel .preview-modes .chip.active {
+	background: var(--accent, #3a6df0);
+	color: #fff;
+}
+
 .pump-preview-panel .preview-chart {
 	min-height: 120px;
 	border: 1px dashed rgba(0,0,0,0.1);
@@ -128,6 +137,11 @@
 	align-items: center;
 	gap: 6px;
 	color: rgba(0,0,0,0.7);
+}
+
+.pump-preview-panel button.secondary.small:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
 }
 .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; min-width:0; margin-bottom: 16px; }
 .card h2{ font-size:16px; margin:0 0 10px; color:var(--accent); }

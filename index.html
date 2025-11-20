@@ -172,8 +172,8 @@
               <div class="preview-summary" data-slot="summary">Step recipe details will appear here once a pump is selected.</div>
             </div>
             <div class="preview-modes">
-              <span class="chip" data-mode="ji">JI (planned)</span>
-              <span class="chip muted" data-mode="edo">Select an EDO to enable</span>
+              <span class="chip" data-mode="ji" role="button" tabindex="0">JI</span>
+              <span class="chip muted" data-mode="edo" role="button" tabindex="0">Select an EDO to enable</span>
             </div>
             <div class="preview-controls">
               <label for="pumpPreviewBaseHz">Base pitch (Hz)
@@ -183,10 +183,10 @@
             <div class="preview-note" data-slot="note">Awaiting pump selection.</div>
             <div class="preview-chart placeholder" data-slot="chart">Stack view placeholder — eventual spiral/timeline goes here.</div>
             <div class="preview-transport">
-              <button class="secondary small" disabled>Play</button>
-              <button class="secondary small" disabled>Pause</button>
+              <button class="secondary small" id="pumpPreviewPlay" disabled>Play</button>
+              <button class="secondary small" id="pumpPreviewStop" disabled>Stop</button>
               <label class="preview-loop">
-                <input type="checkbox" disabled />
+                <input type="checkbox" id="pumpPreviewLoop" disabled />
                 Loop pump
               </label>
             </div>

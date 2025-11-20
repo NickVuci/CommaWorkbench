@@ -15,7 +15,14 @@ export function stepsSelected(containerEl, generatedSteps){
   const boxes = containerEl.querySelectorAll('input[type=checkbox]');
   const out=[];
   for(let i=0;i<boxes.length;i++){
-    const b=boxes[i]; if(b.checked){ const idx=Number(b.value); const it=generatedSteps[idx]; if(it) out.push({ name:it.name, monzo:it.monzo }); }
+    const b=boxes[i];
+    if(b.checked){
+      const idx=Number(b.value);
+      const it=generatedSteps[idx];
+      if(it){
+        out.push({ name:it.name, monzo:it.monzo, cents: it.cents });
+      }
+    }
   }
   return out;
 }

@@ -39,6 +39,8 @@ export function buildPumpWalk(pump, steps, options){
     cumJI += delta;
     totalAbsMoves += Math.abs(coeff);
     const approxCents = edoStepSize ? Math.round(cumJI / edoStepSize) * edoStepSize : null;
+    const freqJI = centsToHz(basePitchHz, cumJI);
+    const freqEDO = approxCents==null ? null : centsToHz(basePitchHz, approxCents);
     points.push({
       index: points.length + 1,
       coeff,
@@ -46,7 +48,9 @@ export function buildPumpWalk(pump, steps, options){
       deltaJI: delta,
       cumulativeJI: cumJI,
       cumulativeEDO: approxCents,
-      freqHz: centsToHz(basePitchHz, cumJI)
+      freqHz: freqJI,
+      freqHzJI: freqJI,
+      freqHzEDO: freqEDO
     });
   }
 

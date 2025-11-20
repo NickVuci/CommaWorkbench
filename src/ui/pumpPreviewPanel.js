@@ -55,7 +55,7 @@ function renderWalkTable(container, walk){
       fmtCents(row.deltaJI),
       fmtCents(row.cumulativeJI),
       row.cumulativeEDO==null? '—' : fmtCents(row.cumulativeEDO),
-      fmtHz(row.freqHz)
+      fmtHz(row.freqHzJI || row.freqHz)
     ];
     cells.forEach((cell, idx)=>{
       const td=document.createElement('td');
