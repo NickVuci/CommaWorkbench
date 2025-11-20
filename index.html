@@ -158,8 +158,33 @@
         </div>
         <div class="table-scroll" style="margin-top:8px;">
           <table id="pumpTable"><thead><tr>
-            <th>Step Recipe (x)</th><th>L1</th>
+            <th></th><th>Step Recipe (x)</th><th>L1</th>
           </tr></thead><tbody></tbody></table>
+        </div>
+      </section>
+      <section class="card dataset-card pump-preview-card">
+        <h3 style="margin-top:14px;">Pump Preview (experimental)</h3>
+        <div id="pumpPreviewPanel" class="pump-preview-panel" data-state="idle">
+          <div class="preview-empty" data-slot="empty">Select a pump row to stage audio + stack view experiments.</div>
+          <div class="preview-body" data-slot="body">
+            <div class="preview-meta">
+              <div class="preview-title" data-slot="title">Pump preview placeholder</div>
+              <div class="preview-summary" data-slot="summary">Step recipe details will appear here once a pump is selected.</div>
+            </div>
+            <div class="preview-modes">
+              <span class="chip" data-mode="ji">JI (planned)</span>
+              <span class="chip muted" data-mode="edo">Select an EDO to enable</span>
+            </div>
+            <div class="preview-chart placeholder" data-slot="chart">Stack view placeholder — eventual spiral/timeline goes here.</div>
+            <div class="preview-transport">
+              <button class="secondary small" disabled>Play</button>
+              <button class="secondary small" disabled>Pause</button>
+              <label class="preview-loop">
+                <input type="checkbox" disabled />
+                Loop pump
+              </label>
+            </div>
+          </div>
         </div>
       </section>
       <details>

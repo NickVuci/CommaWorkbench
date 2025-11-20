@@ -85,9 +85,17 @@ export function renderPumpTable(tbodyEl, steps, pumps, comma){
     const x=pumps[i]; const L=l1(x);
     const parts=[]; for(let j=0;j<x.length;j++){ const k=x[j]; if(!k) continue; parts.push((k>=0? '+'+String(k):String(k))+'·'+steps[j].name); }
     const tr=document.createElement('tr');
+    tr.dataset.pumpIndex = String(i);
+    const actionTd=document.createElement('td');
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='preview-btn secondary small';
+    btn.textContent='Preview';
+    btn.dataset.pumpIndex = String(i);
+    actionTd.appendChild(btn);
     const b=document.createElement('td'); b.className='mono'; b.textContent=parts.join('  +  ')||'all zeros';
     const c1=document.createElement('td'); c1.textContent=String(L);
-    tr.appendChild(b); tr.appendChild(c1); tbodyEl.appendChild(tr);
+    tr.appendChild(actionTd); tr.appendChild(b); tr.appendChild(c1); tbodyEl.appendChild(tr);
   }
 }
 

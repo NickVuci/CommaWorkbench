@@ -9,6 +9,7 @@ import { buildStepsChips as buildStepsChipsUI, stepsSelected as stepsSelectedUI 
 import { renderCommaTable } from './ui/commaTable.js';
 import { renderEdoTable } from './ui/edoTable.js';
 import { renderPumpTable, renderPumpEquivalences, canonicalizePumps } from './ui/pumpTable.js';
+import { initPumpPreviewPanel } from './ui/pumpPreviewPanel.js';
 import { renderTestResults } from './ui/testsUI.js';
 import { runSelfTests } from './tests/selfTests.js';
 
@@ -24,6 +25,8 @@ var pumpCancelBtn = document.getElementById('pumpCancel');
 var pumpEtaEl = document.getElementById('pumpEta');
 var pumpStatusEl = document.getElementById('pumpStatus');
 var pumpEquivalencesEl = document.getElementById('pumpEquivalences');
+var pumpPreviewPanel = document.getElementById('pumpPreviewPanel');
+var pumpPreviewUI = initPumpPreviewPanel(pumpPreviewPanel);
 var canonicalizeToggle = document.getElementById('canonicalizePumps');
 var runPumpsBtn = document.getElementById('runPumpsBtn');
 // Track the currently active pump search to avoid stale UI updates
@@ -42,6 +45,10 @@ var edoApproxTolInput = document.getElementById('edoApproxTol');
 var lastCommas=[]; var lastMatches=new Map(); var generatedSteps=[]; var allSteps=[];
 var selectedCommaIndex = -1;
 var selectedEdo = null;
+var selectedPumpIndex = -1;
+var lastPumpSolutions = [];
+var lastPumpSteps = [];
+var lastPumpCommaMeta = null;
 
 if(commaTableBody){
   commaTableBody.addEventListener('click', function(ev){
@@ -64,6 +71,22 @@ if(edoTableBody){
     var edo = Number(row.dataset.edo);
     if(!Number.isFinite(edo)) return;
     toggleSelectedEdo(edo);
+  });
+}
+
+if(pumpTableBody){
+  pumpTableBody.addEventListener('click', function(ev){
+    var btn = ev.target.closest('button[data-pump-index]');
+    if(btn){
+      var idx = Number(btn.dataset.pumpIndex);
+      if(!Number.isNaN(idx)) setSelectedPump(idx);
+      return;
+    }
+    var row = ev.target.closest('tr[data-pump-index]');
+    if(row){
+      var ridx = Number(row.dataset.pumpIndex);
+      if(!Number.isNaN(ridx)) setSelectedPump(ridx);
+    }
   });
 }
 
@@ -139,6 +162,7 @@ function toggleSelectedEdo(edo){
   selectedEdo = (selectedEdo === edo) ? null : edo;
   renderSelectedEdoTable();
   refreshStepsView();
+  refreshPumpPreviewPanel();
 }
 
 function setSelectedComma(idx){
@@ -163,6 +187,49 @@ function clearSelectedComma(){
   clearPumpDisplays('Select a comma and rerun the pump search.');
 }
 
+function setSelectedPump(idx){
+  if(idx<0 || idx>=lastPumpSolutions.length) return;
+  selectedPumpIndex = idx;
+  updatePumpSelectionHighlight();
+  refreshPumpPreviewPanel();
+}
+
+function clearSelectedPump(){
+  selectedPumpIndex = -1;
+  updatePumpSelectionHighlight();
+  refreshPumpPreviewPanel();
+}
+
+function updatePumpSelectionHighlight(){
+  if(!pumpTableBody) return;
+  var rows = pumpTableBody.querySelectorAll('tr[data-pump-index]');
+  for(var i=0;i<rows.length;i++){
+    var row = rows[i];
+    var idx = Number(row.dataset.pumpIndex);
+    if(idx === selectedPumpIndex){ row.classList.add('selected'); }
+    else { row.classList.remove('selected'); }
+  }
+}
+
+function refreshPumpPreviewPanel(){
+  if(!pumpPreviewUI) return;
+  var edoEnabled = Number.isFinite(selectedEdo);
+  if(selectedPumpIndex < 0 || selectedPumpIndex >= lastPumpSolutions.length){
+    pumpPreviewUI.showIdle({ edoEnabled: edoEnabled });
+    return;
+  }
+  var pump = lastPumpSolutions[selectedPumpIndex];
+  var titleParts = ['Pump #'+String(selectedPumpIndex+1)];
+  if(lastPumpCommaMeta && lastPumpCommaMeta.ratio){ titleParts.push(lastPumpCommaMeta.ratio); }
+  var title = titleParts.join(' • ');
+  pumpPreviewUI.showPump({
+    pump: pump,
+    steps: lastPumpSteps,
+    edoEnabled: edoEnabled,
+    title: title
+  });
+}
+
 function cancelPumpSearch(){
   if(currentPumpCancel){
     try{ currentPumpCancel(); }
@@ -179,6 +246,11 @@ function clearPumpDisplays(message){
   if(pumpEtaEl) pumpEtaEl.textContent='ETA: —';
   if(pumpStatusEl) pumpStatusEl.textContent = message || 'Select "Run Pump Search" once ready.';
   if(kpiPumps) kpiPumps.textContent='0';
+  lastPumpSolutions = [];
+  lastPumpSteps = [];
+  lastPumpCommaMeta = null;
+  selectedPumpIndex = -1;
+  refreshPumpPreviewPanel();
 }
 
 // (busy overlay removed)
@@ -196,11 +268,18 @@ function runPumpSearchForComma(idx){
   if(pumpEtaEl) pumpEtaEl.textContent='ETA: —';
   if(pumpStatusEl) pumpStatusEl.textContent='Starting…';
   if(pumpProgress) pumpProgress.style.display='block';
+  selectedPumpIndex = -1;
+  lastPumpSolutions = [];
+  lastPumpSteps = [];
+  lastPumpCommaMeta = lastCommas[idx] || null;
+  refreshPumpPreviewPanel();
 
   // Defer to allow overlay to paint
   setTimeout(function(){
     var primes = parsePrimeInput(primeInput.value);
     var steps = stepsSelected();
+    lastPumpSteps = steps.slice();
+    refreshPumpPreviewPanel();
     var coeffBound = Number(document.getElementById('coeffBound').value)||6;
   var l1Cap = Number(document.getElementById('maxL1Steps').value)||Infinity;
     var c = lastCommas[idx].monzo;
@@ -246,11 +325,14 @@ function runPumpSearchForComma(idx){
     // Start async enumeration
   cancelHandle = enumeratePumpsAsync(c, steps, { coeffBound, l1Cap, /* no cap or time limit by default */ chunkMs: 12, iterativeDeepen: true }, {
       onProgress: (meta)=>{ updateProgress(meta); },
-  onBatch: (pumps)=>{ if(runId !== currentPumpRunId) return; const shown = canonicalizeToggle && canonicalizeToggle.checked ? canonicalizePumps(pumps, steps) : pumps; kpiPumps.textContent=String(shown.length); renderPumpTable(pumpTableBody, steps, shown, c); },
+  onBatch: (pumps)=>{ if(runId !== currentPumpRunId) return; const shown = canonicalizeToggle && canonicalizeToggle.checked ? canonicalizePumps(pumps, steps) : pumps; kpiPumps.textContent=String(shown.length); renderPumpTable(pumpTableBody, steps, shown, c); lastPumpSolutions = shown.slice(); updatePumpSelectionHighlight(); refreshPumpPreviewPanel(); },
       onDone: (final, meta)=>{
         if(runId !== currentPumpRunId) return; running=false; setCancelEnabled(false); currentPumpCancel = null; if(runPumpsBtn) runPumpsBtn.disabled=false;
   const shown = canonicalizeToggle && canonicalizeToggle.checked ? canonicalizePumps(final, steps) : final;
   kpiPumps.textContent=String(shown.length); renderPumpTable(pumpTableBody, steps, shown, c);
+        lastPumpSolutions = shown.slice();
+        updatePumpSelectionHighlight();
+        refreshPumpPreviewPanel();
         var note = meta.partial? (meta.reason==='time-budget'? 'Partial (time capped)':'Partial (cancelled)') : (meta.capped? 'Capped at max' : 'Complete');
         pumpStatusEl.textContent = note + ' • ' + String(final.length)+' shown';
         if(pumpProgress) pumpProgress.style.display='none';
