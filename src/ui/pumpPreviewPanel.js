@@ -150,15 +150,16 @@ function renderSparkline(container, walk){
     svg.appendChild(edoPath);
   }
 
-  const last = pts[pts.length-1];
-  if(Number.isFinite(last.cumulativeJI)){
+  pts.forEach((pt, idx)=>{
+    if(idx===0) return; // skip base reference point
+    if(!Number.isFinite(pt.cumulativeJI)) return;
     const dot = document.createElementNS(svgNS, 'circle');
     dot.setAttribute('class', 'sparkline-dot');
-    dot.setAttribute('cx', String((pts.length-1)*stepX));
-    dot.setAttribute('cy', String(scaleY(last.cumulativeJI)));
+    dot.setAttribute('cx', String(idx * stepX));
+    dot.setAttribute('cy', String(scaleY(pt.cumulativeJI)));
     dot.setAttribute('r', '4');
     svg.appendChild(dot);
-  }
+  });
 
   container.appendChild(svg);
 }

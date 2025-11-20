@@ -29,29 +29,39 @@ export function buildPumpWalk(pump, steps, options){
   let cumJI = 0;
   let totalAbsMoves = 0;
 
+  let stepCounter = 0;
   for(let i=0;i<coeffs.length;i++){
-    const coeff = coeffs[i];
-    if(!coeff) continue;
+    const coeffRaw = coeffs[i];
+    if(!coeffRaw) continue;
     const step = vocab[i] || null;
     const stepCents = step && Number.isFinite(step.cents) ? step.cents : 0;
     if(stepCents === 0) continue;
-    const delta = coeff * stepCents;
-    cumJI += delta;
-    totalAbsMoves += Math.abs(coeff);
-    const approxCents = edoStepSize ? Math.round(cumJI / edoStepSize) * edoStepSize : null;
-    const freqJI = centsToHz(basePitchHz, cumJI);
-    const freqEDO = approxCents==null ? null : centsToHz(basePitchHz, approxCents);
-    points.push({
-      index: points.length + 1,
-      coeff,
-      stepName: formatStepName(step, 'step '+String(i+1)),
-      deltaJI: delta,
-      cumulativeJI: cumJI,
-      cumulativeEDO: approxCents,
-      freqHz: freqJI,
-      freqHzJI: freqJI,
-      freqHzEDO: freqEDO
-    });
+    const repeats = Math.abs(Math.trunc(coeffRaw));
+    if(repeats === 0) continue;
+    const direction = coeffRaw >= 0 ? 1 : -1;
+    const signedName = (direction >=0 ? '+' : '-') + ' ' + formatStepName(step, 'step '+String(i+1));
+    for(let r=0; r<repeats; r++){
+      const delta = direction * stepCents;
+      cumJI += delta;
+      totalAbsMoves += 1;
+      const approxCents = edoStepSize ? Math.round(cumJI / edoStepSize) * edoStepSize : null;
+      const freqJI = centsToHz(basePitchHz, cumJI);
+      const freqEDO = approxCents==null ? null : centsToHz(basePitchHz, approxCents);
+      points.push({
+        index: (++stepCounter),
+        coeff: direction,
+        stepName: signedName,
+        sourceStepIndex: i,
+        repeatIndex: r+1,
+        repeatCount: repeats,
+        deltaJI: delta,
+        cumulativeJI: cumJI,
+        cumulativeEDO: approxCents,
+        freqHz: freqJI,
+        freqHzJI: freqJI,
+        freqHzEDO: freqEDO
+      });
+    }
   }
 
   return {
