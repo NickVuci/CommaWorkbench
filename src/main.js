@@ -10,6 +10,7 @@ import { renderCommaTable } from './ui/commaTable.js';
 import { renderEdoTable } from './ui/edoTable.js';
 import { renderPumpTable, renderPumpEquivalences, canonicalizePumps } from './ui/pumpTable.js';
 import { initPumpPreviewPanel } from './ui/pumpPreviewPanel.js';
+import { buildPumpWalk } from './theory/pumpWalk.js';
 import { renderTestResults } from './ui/testsUI.js';
 import { runSelfTests } from './tests/selfTests.js';
 
@@ -27,6 +28,7 @@ var pumpStatusEl = document.getElementById('pumpStatus');
 var pumpEquivalencesEl = document.getElementById('pumpEquivalences');
 var pumpPreviewPanel = document.getElementById('pumpPreviewPanel');
 var pumpPreviewUI = initPumpPreviewPanel(pumpPreviewPanel);
+var pumpPreviewBaseHzInput = document.getElementById('pumpPreviewBaseHz');
 var canonicalizeToggle = document.getElementById('canonicalizePumps');
 var runPumpsBtn = document.getElementById('runPumpsBtn');
 // Track the currently active pump search to avoid stale UI updates
@@ -49,6 +51,7 @@ var selectedPumpIndex = -1;
 var lastPumpSolutions = [];
 var lastPumpSteps = [];
 var lastPumpCommaMeta = null;
+var pumpPreviewBaseHz = pumpPreviewBaseHzInput ? Number(pumpPreviewBaseHzInput.value) || 440 : 440;
 
 if(commaTableBody){
   commaTableBody.addEventListener('click', function(ev){
@@ -93,6 +96,15 @@ if(pumpTableBody){
 if(edoApproxTolInput){
   edoApproxTolInput.addEventListener('input', function(){
     refreshStepsView();
+  });
+}
+
+if(pumpPreviewBaseHzInput){
+  pumpPreviewBaseHzInput.addEventListener('input', function(){
+    var next = Number(pumpPreviewBaseHzInput.value);
+    if(!Number.isFinite(next) || next <= 0) return;
+    pumpPreviewBaseHz = next;
+    refreshPumpPreviewPanel();
   });
 }
 
@@ -215,18 +227,21 @@ function refreshPumpPreviewPanel(){
   if(!pumpPreviewUI) return;
   var edoEnabled = Number.isFinite(selectedEdo);
   if(selectedPumpIndex < 0 || selectedPumpIndex >= lastPumpSolutions.length){
-    pumpPreviewUI.showIdle({ edoEnabled: edoEnabled });
+    pumpPreviewUI.showIdle({ edoEnabled: edoEnabled, edoValue: selectedEdo });
     return;
   }
   var pump = lastPumpSolutions[selectedPumpIndex];
   var titleParts = ['Pump #'+String(selectedPumpIndex+1)];
   if(lastPumpCommaMeta && lastPumpCommaMeta.ratio){ titleParts.push(lastPumpCommaMeta.ratio); }
   var title = titleParts.join(' • ');
+  var walkData = buildPumpWalk(pump, lastPumpSteps, { edo: selectedEdo, basePitchHz: pumpPreviewBaseHz });
   pumpPreviewUI.showPump({
     pump: pump,
     steps: lastPumpSteps,
     edoEnabled: edoEnabled,
-    title: title
+    edoValue: selectedEdo,
+    title: title,
+    walk: walkData
   });
 }
 
@@ -278,8 +293,8 @@ function runPumpSearchForComma(idx){
   setTimeout(function(){
     var primes = parsePrimeInput(primeInput.value);
     var steps = stepsSelected();
-    lastPumpSteps = steps.slice();
-    refreshPumpPreviewPanel();
+      lastPumpSteps = steps.slice();
+      refreshPumpPreviewPanel();
     var coeffBound = Number(document.getElementById('coeffBound').value)||6;
   var l1Cap = Number(document.getElementById('maxL1Steps').value)||Infinity;
     var c = lastCommas[idx].monzo;

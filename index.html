@@ -175,6 +175,12 @@
               <span class="chip" data-mode="ji">JI (planned)</span>
               <span class="chip muted" data-mode="edo">Select an EDO to enable</span>
             </div>
+            <div class="preview-controls">
+              <label for="pumpPreviewBaseHz">Base pitch (Hz)
+                <input type="number" id="pumpPreviewBaseHz" value="440" min="55" max="1760" step="1" />
+              </label>
+            </div>
+            <div class="preview-note" data-slot="note">Awaiting pump selection.</div>
             <div class="preview-chart placeholder" data-slot="chart">Stack view placeholder — eventual spiral/timeline goes here.</div>
             <div class="preview-transport">
               <button class="secondary small" disabled>Play</button>
