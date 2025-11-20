@@ -69,6 +69,100 @@ function renderWalkTable(container, walk){
   container.appendChild(table);
 }
 
+function buildSparklinePoints(walk){
+  const hasEdo = walk.points.some((pt)=> Number.isFinite(pt.cumulativeEDO));
+  const basePoint = { cumulativeJI: 0, cumulativeEDO: hasEdo ? 0 : null };
+  const pts = [basePoint];
+  walk.points.forEach((pt)=>{
+    pts.push({
+      cumulativeJI: Number.isFinite(pt.cumulativeJI) ? pt.cumulativeJI : 0,
+      cumulativeEDO: Number.isFinite(pt.cumulativeEDO) ? pt.cumulativeEDO : (hasEdo ? null : null)
+    });
+  });
+  return pts;
+}
+
+function renderSparkline(container, walk){
+  if(!container) return;
+  clear(container);
+  if(!walk || !Array.isArray(walk.points) || walk.points.length===0){
+    const empty=document.createElement('div');
+    empty.className='chart-empty';
+    empty.textContent='Select a pump to view the trajectory.';
+    container.appendChild(empty);
+    return;
+  }
+  const width = container.clientWidth || 320;
+  const height = 140;
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'Pump trajectory sparkline');
+  const pts = buildSparklinePoints(walk);
+  const values=[];
+  pts.forEach((pt)=>{
+    if(Number.isFinite(pt.cumulativeJI)) values.push(pt.cumulativeJI);
+    if(Number.isFinite(pt.cumulativeEDO)) values.push(pt.cumulativeEDO);
+  });
+  if(values.length===0) values.push(0);
+  const min = Math.min.apply(null, values);
+  const max = Math.max.apply(null, values);
+  const span = Math.max(1e-6, max - min || 1);
+  const stepX = pts.length>1 ? width/(pts.length-1) : width;
+  const scaleY = (val)=> height - ((val - min)/span)*height;
+
+  function buildPath(key){
+    let d='';
+    let started=false;
+    pts.forEach((pt, idx)=>{
+      const val = pt[key];
+      if(!Number.isFinite(val)) { started=false; return; }
+      const x = idx * stepX;
+      const y = scaleY(val);
+      d += (started ? ' L ' : 'M ') + x + ' ' + y;
+      started=true;
+    });
+    return d;
+  }
+
+  if(min < 0 && max > 0){
+    const zeroY = scaleY(0);
+    const axis = document.createElementNS(svgNS, 'line');
+    axis.setAttribute('x1', '0');
+    axis.setAttribute('y1', String(zeroY));
+    axis.setAttribute('x2', String(width));
+    axis.setAttribute('y2', String(zeroY));
+    axis.setAttribute('class', 'sparkline-axis');
+    svg.appendChild(axis);
+  }
+
+  const jiPath = document.createElementNS(svgNS, 'path');
+  jiPath.setAttribute('class', 'sparkline-path ji');
+  jiPath.setAttribute('d', buildPath('cumulativeJI'));
+  svg.appendChild(jiPath);
+
+  const hasEdo = pts.some((pt)=> Number.isFinite(pt.cumulativeEDO));
+  if(hasEdo){
+    const edoPath = document.createElementNS(svgNS, 'path');
+    edoPath.setAttribute('class', 'sparkline-path edo');
+    edoPath.setAttribute('d', buildPath('cumulativeEDO'));
+    svg.appendChild(edoPath);
+  }
+
+  const last = pts[pts.length-1];
+  if(Number.isFinite(last.cumulativeJI)){
+    const dot = document.createElementNS(svgNS, 'circle');
+    dot.setAttribute('class', 'sparkline-dot');
+    dot.setAttribute('cx', String((pts.length-1)*stepX));
+    dot.setAttribute('cy', String(scaleY(last.cumulativeJI)));
+    dot.setAttribute('r', '4');
+    svg.appendChild(dot);
+  }
+
+  container.appendChild(svg);
+}
+
 function buildSummaryText(payload){
   const walk = payload && payload.walk;
   if(!walk || !walk.summary) return describePump(payload && payload.pump, payload && payload.steps);
@@ -88,6 +182,7 @@ export function initPumpPreviewPanel(container){
   const summaryEl = container.querySelector('[data-slot="summary"]');
   const noteEl = container.querySelector('[data-slot="note"]');
   const chartEl = container.querySelector('[data-slot="chart"]');
+  const walkTableEl = container.querySelector('[data-slot="walkTable"]');
   const jiChip = container.querySelector('[data-mode="ji"]');
   const edoChip = container.querySelector('[data-mode="edo"]');
 
@@ -134,9 +229,8 @@ export function initPumpPreviewPanel(container){
     if(noteEl){
       noteEl.textContent = buildSummaryText(payload);
     }
-    if(chartEl){
-      renderWalkTable(chartEl, payload.walk);
-    }
+    renderSparkline(chartEl, payload.walk);
+    renderWalkTable(walkTableEl, payload.walk);
   }
 
   showIdle();

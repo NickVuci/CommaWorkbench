@@ -181,7 +181,10 @@
               </label>
             </div>
             <div class="preview-note" data-slot="note">Awaiting pump selection.</div>
-            <div class="preview-chart placeholder" data-slot="chart">Stack view placeholder — eventual spiral/timeline goes here.</div>
+            <div class="preview-chart" data-slot="chart">
+              <div class="chart-empty">Select a pump to view the trajectory.</div>
+            </div>
+            <div class="preview-walk" data-slot="walkTable"></div>
             <div class="preview-transport">
               <button class="secondary small" id="pumpPreviewPlay" disabled>Play</button>
               <button class="secondary small" id="pumpPreviewStop" disabled>Stop</button>
