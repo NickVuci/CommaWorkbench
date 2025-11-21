@@ -94,6 +94,8 @@ function renderSparkline(container, walk){
   }
   const width = container.clientWidth || 320;
   const height = 140;
+  const paddingX = 16;
+  const paddingY = 12;
   const svgNS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(svgNS, 'svg');
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
@@ -109,8 +111,13 @@ function renderSparkline(container, walk){
   const min = Math.min.apply(null, values);
   const max = Math.max.apply(null, values);
   const span = Math.max(1e-6, max - min || 1);
-  const stepX = pts.length>1 ? width/(pts.length-1) : width;
-  const scaleY = (val)=> height - ((val - min)/span)*height;
+  const innerWidth = Math.max(1, width - paddingX * 2);
+  const innerHeight = Math.max(1, height - paddingY * 2);
+  const getX = (idx)=>{
+    if(pts.length<=1) return paddingX + innerWidth/2;
+    return paddingX + (innerWidth/(pts.length-1)) * idx;
+  };
+  const getY = (val)=> height - paddingY - ((val - min)/span) * innerHeight;
 
   function buildPath(key){
     let d='';
@@ -118,8 +125,8 @@ function renderSparkline(container, walk){
     pts.forEach((pt, idx)=>{
       const val = pt[key];
       if(!Number.isFinite(val)) { started=false; return; }
-      const x = idx * stepX;
-      const y = scaleY(val);
+      const x = getX(idx);
+      const y = getY(val);
       d += (started ? ' L ' : 'M ') + x + ' ' + y;
       started=true;
     });
@@ -127,11 +134,11 @@ function renderSparkline(container, walk){
   }
 
   if(min < 0 && max > 0){
-    const zeroY = scaleY(0);
+    const zeroY = getY(0);
     const axis = document.createElementNS(svgNS, 'line');
-    axis.setAttribute('x1', '0');
+    axis.setAttribute('x1', String(paddingX));
     axis.setAttribute('y1', String(zeroY));
-    axis.setAttribute('x2', String(width));
+    axis.setAttribute('x2', String(width - paddingX));
     axis.setAttribute('y2', String(zeroY));
     axis.setAttribute('class', 'sparkline-axis');
     svg.appendChild(axis);
@@ -157,8 +164,8 @@ function renderSparkline(container, walk){
     dot.setAttribute('class', 'sparkline-dot');
     if(idx===0) dot.classList.add('base');
     dot.dataset.pointIndex = String(idx);
-    dot.setAttribute('cx', String(idx * stepX));
-    dot.setAttribute('cy', String(scaleY(pt.cumulativeJI)));
+    dot.setAttribute('cx', String(getX(idx)));
+    dot.setAttribute('cy', String(getY(pt.cumulativeJI)));
     dot.setAttribute('r', '4');
     svg.appendChild(dot);
     dots.push(dot);

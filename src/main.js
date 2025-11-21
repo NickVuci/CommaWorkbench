@@ -38,10 +38,9 @@ function triggerPumpPlayback(action){
     loop: pumpPreviewLoopToggle && pumpPreviewLoopToggle.checked,
     noteDuration: 0.6,
     release: 0.08,
-    onReference: handlePlaybackReference,
-    onPoint: handlePlaybackPoint,
     onComplete: handlePlaybackComplete
   });
+  startPlaybackMonitor();
   updatePlaybackControls();
 }
 
@@ -120,29 +119,93 @@ var lastPumpCommaMeta = null;
 var pumpPreviewBaseHz = pumpPreviewBaseHzInput ? Number(pumpPreviewBaseHzInput.value) || 440 : 440;
 var pumpPreviewMode = 'ji';
 var lastPumpWalk = null;
+var playbackMonitorHandle = null;
+var lastSparklineHighlight = null;
+
+function requestFrame(cb){
+  if(typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'){
+    return window.requestAnimationFrame(cb);
+  }
+  return setTimeout(cb, 16);
+}
+
+function cancelFrame(id){
+  if(typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function'){
+    window.cancelAnimationFrame(id);
+  }else{
+    clearTimeout(id);
+  }
+}
+
 function setSparklineActivePoint(idx){
   if(!pumpPreviewUI || typeof pumpPreviewUI.setActiveWalkPoint !== 'function') return;
   var normalized = Number.isFinite(idx) ? idx : null;
   pumpPreviewUI.setActiveWalkPoint(normalized);
 }
 
-function handlePlaybackReference(){
-  setSparklineActivePoint(0);
+function syncSparklineToPlayback(){
+  var playback = getPlaybackState();
+  if(!playback || !playback.ctx || !Array.isArray(playback.schedule)){
+    if(lastSparklineHighlight !== null){
+      lastSparklineHighlight = null;
+      setSparklineActivePoint(null);
+    }
+    return;
+  }
+  var now = playback.ctx.currentTime;
+  var schedule = playback.schedule;
+  var active = null;
+  for(var i=0;i<schedule.length;i++){
+    var entry = schedule[i];
+    if(!entry) continue;
+    if(now < entry.startTime){
+      break;
+    }
+    if(entry.meta && Number.isFinite(entry.meta.sparklineIndex) && now >= entry.startTime && now < entry.stopTime){
+      active = entry.meta.sparklineIndex;
+    }
+  }
+  if(active !== lastSparklineHighlight){
+    lastSparklineHighlight = active;
+    setSparklineActivePoint(active);
+  }
 }
 
-function handlePlaybackPoint(payload){
-  if(!payload || typeof payload.index !== 'number') return;
-  var pointIdx = payload.index + 1; // offset for initial reference point
-  setSparklineActivePoint(pointIdx);
+function playbackMonitorStep(){
+  syncSparklineToPlayback();
+  if(getPlaybackState()){
+    playbackMonitorHandle = requestFrame(playbackMonitorStep);
+  }else{
+    playbackMonitorHandle = null;
+  }
+}
+
+function startPlaybackMonitor(){
+  stopPlaybackMonitor();
+  lastSparklineHighlight = 0;
+  setSparklineActivePoint(0);
+  playbackMonitorHandle = requestFrame(playbackMonitorStep);
+}
+
+function stopPlaybackMonitor(){
+  if(playbackMonitorHandle!=null){
+    cancelFrame(playbackMonitorHandle);
+    playbackMonitorHandle = null;
+  }
+  if(lastSparklineHighlight !== null){
+    lastSparklineHighlight = null;
+    setSparklineActivePoint(null);
+  }
 }
 
 function handlePlaybackComplete(){
-  setSparklineActivePoint(null);
+  stopPlaybackMonitor();
+  updatePlaybackControls();
 }
 
 function haltPumpPlayback(){
   stopPump();
-  handlePlaybackComplete();
+  stopPlaybackMonitor();
 }
 
 if(commaTableBody){

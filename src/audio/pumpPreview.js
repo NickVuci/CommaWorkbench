@@ -45,8 +45,6 @@ function schedulePumpPlayback(walk, options){
     noteDuration: DEFAULT_NOTE_DURATION,
     release: DEFAULT_RELEASE,
     mode: 'ji',
-    onReference: null,
-    onPoint: null,
     onComplete: null
   }, options||{});
   const baseHz = (walk.summary && walk.summary.basePitchHz) || 440;
@@ -61,9 +59,10 @@ function schedulePumpPlayback(walk, options){
   let startTime = ctx.currentTime + 0.05;
   ctx.resume && ctx.resume().catch(()=>{});
   // Reference pitch first
+  let sparklineCursor = 0;
   const refEntry = scheduleTone(ctx, baseHz, startTime, opts.noteDuration, opts.release);
+  refEntry.meta = { sparklineIndex: sparklineCursor, walkIndex: -1 };
   schedule.push(refEntry);
-  queueCallback(opts.onReference, refEntry.startTime, null);
   startTime += opts.noteDuration;
   const totalPoints = walk.points.length;
   for(let i=0;i<totalPoints;i++){
@@ -72,13 +71,20 @@ function schedulePumpPlayback(walk, options){
     if(!Number.isFinite(cents)) continue;
     const freq = computeFreq(baseHz, cents);
     const entry = scheduleTone(ctx, freq, startTime, opts.noteDuration, opts.release);
+    sparklineCursor = i+1;
+    entry.meta = { sparklineIndex: sparklineCursor, walkIndex: i };
     schedule.push(entry);
-    queueCallback(opts.onPoint, entry.startTime, { index: i, point: pt });
     startTime += opts.noteDuration;
   }
   if(schedule.length){
     const finalStop = schedule[schedule.length-1].stopTime;
-    queueCallback(opts.onComplete, finalStop, null);
+    queueCallback(()=>{
+      if(currentPlayback !== playback) return;
+      stopCurrentPlayback();
+      if(typeof opts.onComplete === 'function'){
+        opts.onComplete();
+      }
+    }, finalStop, null);
   }
   const playback = {
     ctx,
