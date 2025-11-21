@@ -90,7 +90,7 @@ function renderSparkline(container, walk){
     empty.className='chart-empty';
     empty.textContent='Select a pump to view the trajectory.';
     container.appendChild(empty);
-    return;
+    return { dots: [] };
   }
   const width = container.clientWidth || 320;
   const height = 140;
@@ -150,18 +150,22 @@ function renderSparkline(container, walk){
     svg.appendChild(edoPath);
   }
 
+  const dots = [];
   pts.forEach((pt, idx)=>{
-    if(idx===0) return; // skip base reference point
     if(!Number.isFinite(pt.cumulativeJI)) return;
     const dot = document.createElementNS(svgNS, 'circle');
     dot.setAttribute('class', 'sparkline-dot');
+    if(idx===0) dot.classList.add('base');
+    dot.dataset.pointIndex = String(idx);
     dot.setAttribute('cx', String(idx * stepX));
     dot.setAttribute('cy', String(scaleY(pt.cumulativeJI)));
     dot.setAttribute('r', '4');
     svg.appendChild(dot);
+    dots.push(dot);
   });
 
   container.appendChild(svg);
+  return { dots };
 }
 
 function buildSummaryText(payload){
@@ -186,6 +190,15 @@ export function initPumpPreviewPanel(container){
   const walkTableEl = container.querySelector('[data-slot="walkTable"]');
   const jiChip = container.querySelector('[data-mode="ji"]');
   const edoChip = container.querySelector('[data-mode="edo"]');
+  let activeDots = [];
+
+  function setActiveWalkPoint(index){
+    if(!activeDots || activeDots.length===0){ return; }
+    activeDots.forEach((dot)=>{
+      const match = Number(dot.dataset.pointIndex) === index;
+      dot.classList.toggle('active', index!=null && match);
+    });
+  }
 
   function setModeAvailability(opts){
     const edoEnabled = !!(opts && opts.edoEnabled);
@@ -201,6 +214,7 @@ export function initPumpPreviewPanel(container){
 
   function showIdle(opts){
     container.dataset.state = 'idle';
+    setActiveWalkPoint(null);
     if(emptyEl){
       emptyEl.textContent = (opts && opts.message) || 'Select a pump row to stage audio + stack view experiments.';
     }
@@ -230,7 +244,9 @@ export function initPumpPreviewPanel(container){
     if(noteEl){
       noteEl.textContent = buildSummaryText(payload);
     }
-    renderSparkline(chartEl, payload.walk);
+    const chartState = renderSparkline(chartEl, payload.walk);
+    activeDots = chartState && Array.isArray(chartState.dots) ? chartState.dots : [];
+    setActiveWalkPoint(null);
     renderWalkTable(walkTableEl, payload.walk);
   }
 
@@ -238,6 +254,7 @@ export function initPumpPreviewPanel(container){
   return {
     showIdle,
     showPump,
-    setModeAvailability
+    setModeAvailability,
+    setActiveWalkPoint
   };
 }

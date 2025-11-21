@@ -116,6 +116,15 @@
 	stroke: var(--bg);
 	stroke-width: 1.5;
 }
+.sparkline-dot.base{
+	fill: var(--muted);
+	stroke: transparent;
+}
+.sparkline-dot.active{
+	fill: var(--accent);
+	stroke: rgba(0,0,0,0.4);
+	stroke-width: 2;
+}
 
 .pump-preview-panel .preview-controls {
 	display: flex;

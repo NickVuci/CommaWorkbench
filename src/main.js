@@ -37,7 +37,10 @@ function triggerPumpPlayback(action){
     mode: pumpPreviewMode,
     loop: pumpPreviewLoopToggle && pumpPreviewLoopToggle.checked,
     noteDuration: 0.6,
-    release: 0.08
+    release: 0.08,
+    onReference: handlePlaybackReference,
+    onPoint: handlePlaybackPoint,
+    onComplete: handlePlaybackComplete
   });
   updatePlaybackControls();
 }
@@ -117,6 +120,30 @@ var lastPumpCommaMeta = null;
 var pumpPreviewBaseHz = pumpPreviewBaseHzInput ? Number(pumpPreviewBaseHzInput.value) || 440 : 440;
 var pumpPreviewMode = 'ji';
 var lastPumpWalk = null;
+function setSparklineActivePoint(idx){
+  if(!pumpPreviewUI || typeof pumpPreviewUI.setActiveWalkPoint !== 'function') return;
+  var normalized = Number.isFinite(idx) ? idx : null;
+  pumpPreviewUI.setActiveWalkPoint(normalized);
+}
+
+function handlePlaybackReference(){
+  setSparklineActivePoint(0);
+}
+
+function handlePlaybackPoint(payload){
+  if(!payload || typeof payload.index !== 'number') return;
+  var pointIdx = payload.index + 1; // offset for initial reference point
+  setSparklineActivePoint(pointIdx);
+}
+
+function handlePlaybackComplete(){
+  setSparklineActivePoint(null);
+}
+
+function haltPumpPlayback(){
+  stopPump();
+  handlePlaybackComplete();
+}
 
 if(commaTableBody){
   commaTableBody.addEventListener('click', function(ev){
@@ -181,7 +208,7 @@ if(pumpPreviewPlayBtn){
 
 if(pumpPreviewStopBtn){
   pumpPreviewStopBtn.addEventListener('click', function(){
-    stopPump();
+    haltPumpPlayback();
     updatePlaybackControls();
   });
 }
@@ -288,14 +315,14 @@ function clearSelectedComma(){
 
 function setSelectedPump(idx){
   if(idx<0 || idx>=lastPumpSolutions.length) return;
-  stopPump();
+  haltPumpPlayback();
   selectedPumpIndex = idx;
   updatePumpSelectionHighlight();
   refreshPumpPreviewPanel();
 }
 
 function clearSelectedPump(){
-  stopPump();
+  haltPumpPlayback();
   selectedPumpIndex = -1;
   updatePumpSelectionHighlight();
   refreshPumpPreviewPanel();
@@ -317,6 +344,7 @@ function refreshPumpPreviewPanel(){
   var edoEnabled = Number.isFinite(selectedEdo);
   if(selectedPumpIndex < 0 || selectedPumpIndex >= lastPumpSolutions.length){
     lastPumpWalk = null;
+    handlePlaybackComplete();
     pumpPreviewUI.showIdle({ edoEnabled: edoEnabled, edoValue: selectedEdo });
     updatePlaybackControls();
     return;
@@ -347,7 +375,7 @@ function cancelPumpSearch(){
     currentPumpCancel = null;
   }
   if(runPumpsBtn) runPumpsBtn.disabled = false;
-  stopPump();
+  haltPumpPlayback();
   updatePlaybackControls();
 }
 
@@ -363,7 +391,7 @@ function clearPumpDisplays(message){
   lastPumpCommaMeta = null;
   selectedPumpIndex = -1;
   lastPumpWalk = null;
-  stopPump();
+  haltPumpPlayback();
   refreshPumpPreviewPanel();
 }
 
@@ -387,7 +415,7 @@ function runPumpSearchForComma(idx){
   lastPumpSteps = [];
   lastPumpCommaMeta = lastCommas[idx] || null;
   lastPumpWalk = null;
-  stopPump();
+  haltPumpPlayback();
   refreshPumpPreviewPanel();
 
   // Defer to allow overlay to paint

@@ -44,14 +44,26 @@ function schedulePumpPlayback(walk, options){
     loop: false,
     noteDuration: DEFAULT_NOTE_DURATION,
     release: DEFAULT_RELEASE,
-    mode: 'ji'
+    mode: 'ji',
+    onReference: null,
+    onPoint: null,
+    onComplete: null
   }, options||{});
   const baseHz = (walk.summary && walk.summary.basePitchHz) || 440;
   const schedule = [];
+  const callbackTimers = [];
+  function queueCallback(fn, fireTime, payload){
+    if(typeof fn !== 'function') return;
+    const delayMs = Math.max(0, (fireTime - ctx.currentTime) * 1000);
+    const timerId = setTimeout(()=>fn(payload), delayMs);
+    callbackTimers.push(timerId);
+  }
   let startTime = ctx.currentTime + 0.05;
   ctx.resume && ctx.resume().catch(()=>{});
   // Reference pitch first
-  schedule.push(scheduleTone(ctx, baseHz, startTime, opts.noteDuration, opts.release));
+  const refEntry = scheduleTone(ctx, baseHz, startTime, opts.noteDuration, opts.release);
+  schedule.push(refEntry);
+  queueCallback(opts.onReference, refEntry.startTime, null);
   startTime += opts.noteDuration;
   const totalPoints = walk.points.length;
   for(let i=0;i<totalPoints;i++){
@@ -59,8 +71,14 @@ function schedulePumpPlayback(walk, options){
     const cents = opts.mode==='edo' && pt.cumulativeEDO!=null ? pt.cumulativeEDO : pt.cumulativeJI;
     if(!Number.isFinite(cents)) continue;
     const freq = computeFreq(baseHz, cents);
-    schedule.push(scheduleTone(ctx, freq, startTime, opts.noteDuration, opts.release));
+    const entry = scheduleTone(ctx, freq, startTime, opts.noteDuration, opts.release);
+    schedule.push(entry);
+    queueCallback(opts.onPoint, entry.startTime, { index: i, point: pt });
     startTime += opts.noteDuration;
+  }
+  if(schedule.length){
+    const finalStop = schedule[schedule.length-1].stopTime;
+    queueCallback(opts.onComplete, finalStop, null);
   }
   const playback = {
     ctx,
@@ -72,7 +90,8 @@ function schedulePumpPlayback(walk, options){
     walk,
     options: opts,
     loopTimer: null,
-    stop: ()=> stopCurrentPlayback()
+    stop: ()=> stopCurrentPlayback(),
+    callbackTimers
   };
   currentPlayback = playback;
   if(playback.loop){
@@ -91,6 +110,9 @@ function stopCurrentPlayback(){
   if(!currentPlayback) return;
   if(currentPlayback.loopTimer){
     clearTimeout(currentPlayback.loopTimer);
+  }
+  if(Array.isArray(currentPlayback.callbackTimers)){
+    currentPlayback.callbackTimers.forEach(id=> clearTimeout(id));
   }
   currentPlayback.schedule.forEach(entry=>{
     try{ entry.osc.stop(); }catch(e){}
