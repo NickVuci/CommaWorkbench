@@ -6,18 +6,6 @@ const noopPanel = {
   setModeAvailability(){ }
 };
 
-function describePump(pump, steps){
-  if(!pump) return '—';
-  const parts=[];
-  for(let i=0;i<pump.length;i++){
-    const coeff = pump[i];
-    if(!coeff) continue;
-    const label = steps && steps[i] ? steps[i].name : 'step '+String(i+1);
-    parts.push((coeff>=0? '+'+coeff : String(coeff)) + '·' + label);
-  }
-  return parts.join('  ');
-}
-
 function fmtCents(value){
   if(!Number.isFinite(value)) return '—';
   return (Math.abs(value) < 0.001 ? '0.000' : value.toFixed(3)) + '¢';
@@ -41,7 +29,7 @@ function renderWalkTable(container, walk){
   table.className = 'pump-walk-table';
   const thead = document.createElement('thead');
   const trh = document.createElement('tr');
-  ['#','Step','Coeff','Δ (JI)','Σ JI','Σ EDO','Pitch'].forEach((label)=>{
+  ['#','Step','Δ (JI)','Σ JI','Σ EDO','Pitch'].forEach((label)=>{
     const th=document.createElement('th'); th.textContent=label; trh.appendChild(th);
   });
   thead.appendChild(trh); table.appendChild(thead);
@@ -51,7 +39,6 @@ function renderWalkTable(container, walk){
     const cells=[
       row.index,
       row.stepName,
-      row.coeff,
       fmtCents(row.deltaJI),
       fmtCents(row.cumulativeJI),
       row.cumulativeEDO==null? '—' : fmtCents(row.cumulativeEDO),
@@ -175,24 +162,11 @@ function renderSparkline(container, walk){
   return { dots };
 }
 
-function buildSummaryText(payload){
-  const walk = payload && payload.walk;
-  if(!walk || !walk.summary) return describePump(payload && payload.pump, payload && payload.steps);
-  const total = walk.summary.totalAbsMoves || 0;
-  const net = walk.summary.netCents || 0;
-  const base = walk.summary.basePitchHz ? fmtHz(walk.summary.basePitchHz) : '';
-  const edoStep = walk.summary.edoStepSize;
-  const edoPart = walk.summary.edo ? ` • ${walk.summary.edo} EDO (Δ ${(edoStep || 0).toFixed(3)}¢)` : '';
-  return `${total} moves • closure ${fmtCents(net)} • base ${base}${edoPart}`;
-}
-
 export function initPumpPreviewPanel(container){
   if(!container) return noopPanel;
   const emptyEl = container.querySelector('[data-slot="empty"]');
   const bodyEl = container.querySelector('[data-slot="body"]');
   const titleEl = container.querySelector('[data-slot="title"]');
-  const summaryEl = container.querySelector('[data-slot="summary"]');
-  const noteEl = container.querySelector('[data-slot="note"]');
   const chartEl = container.querySelector('[data-slot="chart"]');
   const walkTableEl = container.querySelector('[data-slot="walkTable"]');
   const jiChip = container.querySelector('[data-mode="ji"]');
@@ -244,12 +218,6 @@ export function initPumpPreviewPanel(container){
     if(titleEl){
       const title = typeof payload.title === 'string' ? payload.title : 'Pump preview';
       titleEl.textContent = title;
-    }
-    if(summaryEl){
-      summaryEl.textContent = describePump(payload.pump, payload.steps);
-    }
-    if(noteEl){
-      noteEl.textContent = buildSummaryText(payload);
     }
     const chartState = renderSparkline(chartEl, payload.walk);
     activeDots = chartState && Array.isArray(chartState.dots) ? chartState.dots : [];

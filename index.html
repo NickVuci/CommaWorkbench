@@ -174,13 +174,11 @@
     </section>
 
     <section class="card dataset-card pump-preview-card pump-preview-span">
-      <h3 style="margin-top:14px;">Pump Preview (experimental)</h3>
       <div id="pumpPreviewPanel" class="pump-preview-panel" data-state="idle">
         <div class="preview-empty" data-slot="empty">Select a pump row to stage audio + stack view experiments.</div>
         <div class="preview-body" data-slot="body">
           <div class="preview-meta">
             <div class="preview-title" data-slot="title">Pump preview placeholder</div>
-            <div class="preview-summary" data-slot="summary">Step recipe details will appear here once a pump is selected.</div>
           </div>
           <div class="preview-modes">
             <span class="chip" data-mode="ji" role="button" tabindex="0">JI</span>
@@ -191,7 +189,6 @@
               <input type="number" id="pumpPreviewBaseHz" value="440" min="55" max="1760" step="1" />
             </label>
           </div>
-          <div class="preview-note" data-slot="note">Awaiting pump selection.</div>
           <div class="preview-chart" data-slot="chart">
             <div class="chart-empty">Select a pump to view the trajectory.</div>
           </div>
