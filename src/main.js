@@ -1,25 +1,9 @@
-if(pumpPreviewPanel){
-  pumpPreviewPanel.addEventListener('click', function(ev){
-    var chip = ev.target.closest('.preview-modes .chip');
-    if(chip && chip.dataset.mode){
-      onPreviewModeChange(chip.dataset.mode);
-    }
-  });
-  pumpPreviewPanel.addEventListener('keydown', function(ev){
-    if(ev.key === 'Enter' || ev.key === ' '){
-      var chip = ev.target.closest('.preview-modes .chip');
-      if(chip && chip.dataset.mode){
-        ev.preventDefault();
-        onPreviewModeChange(chip.dataset.mode);
-      }
-    }
-  });
-}
-
 function onPreviewModeChange(mode){
   if(mode === 'edo' && !Number.isFinite(selectedEdo)) return;
   if(mode !== 'ji' && mode !== 'edo') return;
   pumpPreviewMode = mode;
+  setPreviewMode(pumpPreviewMode);
+  haltPumpPlayback();
   refreshPumpPreviewPanel();
   updatePlaybackControls();
 }
@@ -89,6 +73,23 @@ var pumpStatusEl = document.getElementById('pumpStatus');
 var pumpEquivalencesEl = document.getElementById('pumpEquivalences');
 var pumpPreviewPanel = document.getElementById('pumpPreviewPanel');
 var pumpPreviewUI = initPumpPreviewPanel(pumpPreviewPanel);
+if(pumpPreviewPanel){
+  pumpPreviewPanel.addEventListener('click', function(ev){
+    var chip = ev.target.closest('.preview-modes .chip');
+    if(chip && chip.dataset.mode){
+      onPreviewModeChange(chip.dataset.mode);
+    }
+  });
+  pumpPreviewPanel.addEventListener('keydown', function(ev){
+    if(ev.key === 'Enter' || ev.key === ' '){
+      var chip = ev.target.closest('.preview-modes .chip');
+      if(chip && chip.dataset.mode){
+        ev.preventDefault();
+        onPreviewModeChange(chip.dataset.mode);
+      }
+    }
+  });
+}
 var pumpPreviewBaseHzInput = document.getElementById('pumpPreviewBaseHz');
 var pumpPreviewPlayBtn = document.getElementById('pumpPreviewPlay');
 var pumpPreviewStopBtn = document.getElementById('pumpPreviewStop');
@@ -119,7 +120,8 @@ var pumpPreviewBaseHz = pumpPreviewBaseHzInput ? Number(pumpPreviewBaseHzInput.v
 var pumpPreviewMode = 'ji';
 var lastPumpWalk = null;
 var playbackMonitorHandle = null;
-var lastSparklineHighlight = null;
+var lastSparklineHighlightIndex = null;
+var lastSparklineHighlightMode = null;
 
 function requestFrame(cb){
   if(typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'){
@@ -136,19 +138,31 @@ function cancelFrame(id){
   }
 }
 
-function setSparklineActivePoint(idx){
+function setSparklineActivePoint(idx, mode){
   if(!pumpPreviewUI || typeof pumpPreviewUI.setActiveWalkPoint !== 'function') return;
-  var normalized = Number.isFinite(idx) ? idx : null;
-  pumpPreviewUI.setActiveWalkPoint(normalized);
+  pumpPreviewUI.setActiveWalkPoint(idx, mode);
+}
+
+function setPreviewMode(mode){
+  if(!pumpPreviewUI || typeof pumpPreviewUI.setActiveMode !== 'function') return;
+  pumpPreviewUI.setActiveMode(mode);
+}
+
+function updateSparklineHighlight(idx, mode){
+  var normalizedIdx = Number.isFinite(idx) ? idx : null;
+  var normalizedMode = (mode === 'edo' || mode === 'ji') ? mode : null;
+  if(lastSparklineHighlightIndex === normalizedIdx && lastSparklineHighlightMode === normalizedMode){
+    return;
+  }
+  lastSparklineHighlightIndex = normalizedIdx;
+  lastSparklineHighlightMode = normalizedMode;
+  setSparklineActivePoint(normalizedIdx, normalizedMode);
 }
 
 function syncSparklineToPlayback(){
   var playback = getPlaybackState();
   if(!playback || !playback.ctx || !Array.isArray(playback.schedule)){
-    if(lastSparklineHighlight !== null){
-      lastSparklineHighlight = null;
-      setSparklineActivePoint(null);
-    }
+    updateSparklineHighlight(null, null);
     return;
   }
   var now = playback.ctx.currentTime;
@@ -161,12 +175,12 @@ function syncSparklineToPlayback(){
       break;
     }
     if(entry.meta && Number.isFinite(entry.meta.sparklineIndex) && now >= entry.startTime && now < entry.stopTime){
-      active = entry.meta.sparklineIndex;
+      var entryMode = (entry.meta.mode === 'edo') ? 'edo' : 'ji';
+      active = { index: entry.meta.sparklineIndex, mode: entryMode };
     }
   }
-  if(active !== lastSparklineHighlight){
-    lastSparklineHighlight = active;
-    setSparklineActivePoint(active);
+  if(active){
+    updateSparklineHighlight(active.index, active.mode);
   }
   if(!playback.loop){
     var endTime = typeof playback.endTime === 'number' ? playback.endTime : (schedule.length ? schedule[schedule.length-1].stopTime : null);
@@ -188,8 +202,10 @@ function playbackMonitorStep(){
 
 function startPlaybackMonitor(){
   stopPlaybackMonitor();
-  lastSparklineHighlight = 0;
-  setSparklineActivePoint(0);
+  var playback = getPlaybackState();
+  if(!playback) return;
+  var mode = playback.mode ? playback.mode : pumpPreviewMode;
+  updateSparklineHighlight(0, mode);
   playbackMonitorHandle = requestFrame(playbackMonitorStep);
 }
 
@@ -198,10 +214,7 @@ function stopPlaybackMonitor(){
     cancelFrame(playbackMonitorHandle);
     playbackMonitorHandle = null;
   }
-  if(lastSparklineHighlight !== null){
-    lastSparklineHighlight = null;
-    setSparklineActivePoint(null);
-  }
+  updateSparklineHighlight(null, null);
 }
 
 function handlePlaybackComplete(){
@@ -414,7 +427,8 @@ function refreshPumpPreviewPanel(){
   if(selectedPumpIndex < 0 || selectedPumpIndex >= lastPumpSolutions.length){
     lastPumpWalk = null;
     handlePlaybackComplete();
-    pumpPreviewUI.showIdle({ edoEnabled: edoEnabled, edoValue: selectedEdo });
+    pumpPreviewUI.showIdle({ edoEnabled: edoEnabled, edoValue: selectedEdo, mode: pumpPreviewMode });
+    setPreviewMode(pumpPreviewMode);
     updatePlaybackControls();
     return;
   }
@@ -434,6 +448,7 @@ function refreshPumpPreviewPanel(){
     walk: walkData,
     mode: pumpPreviewMode
   });
+  setPreviewMode(pumpPreviewMode);
   updatePlaybackControls();
 }
 

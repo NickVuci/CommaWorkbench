@@ -53,7 +53,7 @@ function schedulePumpPlayback(walk, options){
   // Reference pitch first
   let sparklineCursor = 0;
   const refEntry = scheduleTone(ctx, baseHz, startTime, opts.noteDuration, opts.release);
-  refEntry.meta = { sparklineIndex: sparklineCursor, walkIndex: -1 };
+  refEntry.meta = { sparklineIndex: sparklineCursor, walkIndex: -1, mode: opts.mode };
   schedule.push(refEntry);
   startTime += opts.noteDuration;
   const totalPoints = walk.points.length;
@@ -64,7 +64,7 @@ function schedulePumpPlayback(walk, options){
     const freq = computeFreq(baseHz, cents);
     const entry = scheduleTone(ctx, freq, startTime, opts.noteDuration, opts.release);
     sparklineCursor = i+1;
-    entry.meta = { sparklineIndex: sparklineCursor, walkIndex: i };
+    entry.meta = { sparklineIndex: sparklineCursor, walkIndex: i, mode: opts.mode };
     schedule.push(entry);
     startTime += opts.noteDuration;
   }

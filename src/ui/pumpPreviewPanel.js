@@ -16,7 +16,7 @@ function fmtHz(value){
   return value.toFixed(2) + ' Hz';
 }
 
-function renderWalkTable(container, walk){
+function renderWalkTable(container, walk, mode){
   if(!container) return;
   clear(container);
   if(!walk || !Array.isArray(walk.points) || walk.points.length===0){
@@ -34,15 +34,17 @@ function renderWalkTable(container, walk){
   });
   thead.appendChild(trh); table.appendChild(thead);
   const tbody=document.createElement('tbody');
+  const useEdoPitch = mode === 'edo';
   walk.points.forEach((row)=>{
     const tr=document.createElement('tr');
+    const pitchHz = useEdoPitch && Number.isFinite(row.freqHzEDO) ? row.freqHzEDO : (Number.isFinite(row.freqHzJI) ? row.freqHzJI : row.freqHz);
     const cells=[
       row.index,
       row.stepName,
       fmtCents(row.deltaJI),
       fmtCents(row.cumulativeJI),
       row.cumulativeEDO==null? '—' : fmtCents(row.cumulativeEDO),
-      fmtHz(row.freqHzJI || row.freqHz)
+      fmtHz(pitchHz)
     ];
     cells.forEach((cell, idx)=>{
       const td=document.createElement('td');
@@ -77,7 +79,7 @@ function renderSparkline(container, walk){
     empty.className='chart-empty';
     empty.textContent='Select a pump to view the trajectory.';
     container.appendChild(empty);
-    return { dots: [] };
+    return { dotsByMode: { ji: [], edo: [] } };
   }
   const width = container.clientWidth || 320;
   const height = 140;
@@ -144,22 +146,29 @@ function renderSparkline(container, walk){
     svg.appendChild(edoPath);
   }
 
-  const dots = [];
-  pts.forEach((pt, idx)=>{
-    if(!Number.isFinite(pt.cumulativeJI)) return;
+  const dotsByMode = { ji: [], edo: [] };
+  function appendDot(mode, idx, value){
+    if(!Number.isFinite(value)) return;
     const dot = document.createElementNS(svgNS, 'circle');
-    dot.setAttribute('class', 'sparkline-dot');
-    if(idx===0) dot.classList.add('base');
+    dot.setAttribute('class', 'sparkline-dot mode-'+mode);
     dot.dataset.pointIndex = String(idx);
+    dot.dataset.mode = mode;
+    if(idx===0) dot.classList.add('base');
     dot.setAttribute('cx', String(getX(idx)));
-    dot.setAttribute('cy', String(getY(pt.cumulativeJI)));
+    dot.setAttribute('cy', String(getY(value)));
     dot.setAttribute('r', '4');
     svg.appendChild(dot);
-    dots.push(dot);
+    if(!dotsByMode[mode]) dotsByMode[mode]=[];
+    dotsByMode[mode].push(dot);
+  }
+
+  pts.forEach((pt, idx)=>{
+    appendDot('ji', idx, pt.cumulativeJI);
+    appendDot('edo', idx, pt.cumulativeEDO);
   });
 
   container.appendChild(svg);
-  return { dots };
+  return { dotsByMode };
 }
 
 export function initPumpPreviewPanel(container){
@@ -171,14 +180,28 @@ export function initPumpPreviewPanel(container){
   const walkTableEl = container.querySelector('[data-slot="walkTable"]');
   const jiChip = container.querySelector('[data-mode="ji"]');
   const edoChip = container.querySelector('[data-mode="edo"]');
-  let activeDots = [];
+  let activeDots = { ji: [], edo: [] };
+  let currentMode = 'ji';
 
-  function setActiveWalkPoint(index){
-    if(!activeDots || activeDots.length===0){ return; }
-    activeDots.forEach((dot)=>{
-      const match = Number(dot.dataset.pointIndex) === index;
-      dot.classList.toggle('active', index!=null && match);
+  function setActiveWalkPoint(index, mode){
+    const targetMode = (mode === 'edo' || mode === 'ji') ? mode : currentMode;
+    const hasIndex = Number.isFinite(index);
+    const dotGroups = (activeDots && typeof activeDots === 'object') ? activeDots : {};
+    Object.keys(dotGroups).forEach((key)=>{
+      const dots = dotGroups[key] || [];
+      dots.forEach((dot)=>{
+        const match = hasIndex && key === targetMode && Number(dot.dataset.pointIndex) === index;
+        dot.classList.toggle('active', !!match);
+      });
     });
+  }
+
+  function setActiveMode(mode){
+    const nextMode = (mode === 'edo' && (!edoChip || !edoChip.classList.contains('muted'))) ? 'edo' : 'ji';
+    currentMode = nextMode;
+    container.dataset.mode = nextMode;
+    setActiveWalkPoint(null, nextMode);
+    return currentMode;
   }
 
   function setModeAvailability(opts){
@@ -186,16 +209,16 @@ export function initPumpPreviewPanel(container){
     const edoValue = opts && Number.isFinite(opts.edoValue) ? Number(opts.edoValue) : null;
     if(edoChip){
       edoChip.classList.toggle('muted', !edoEnabled);
-      edoChip.textContent = edoEnabled ? `${edoValue || '?'} EDO (planned)` : 'Select an EDO to enable';
+      edoChip.textContent = edoEnabled ? `${edoValue || '?'} EDO` : 'Select an EDO to enable';
     }
     if(jiChip){
-      jiChip.textContent = 'JI (planned)';
+      jiChip.textContent = 'JI';
     }
   }
 
   function showIdle(opts){
     container.dataset.state = 'idle';
-    setActiveWalkPoint(null);
+    activeDots = { ji: [], edo: [] };
     if(emptyEl){
       emptyEl.textContent = (opts && opts.message) || 'Select a pump row to stage audio + stack view experiments.';
     }
@@ -203,6 +226,7 @@ export function initPumpPreviewPanel(container){
       bodyEl.setAttribute('aria-hidden','true');
     }
     setModeAvailability({ edoEnabled: !!(opts && opts.edoEnabled), edoValue: opts && opts.edoValue });
+    setActiveMode((opts && opts.mode) || currentMode);
   }
 
   function showPump(payload){
@@ -220,9 +244,9 @@ export function initPumpPreviewPanel(container){
       titleEl.textContent = title;
     }
     const chartState = renderSparkline(chartEl, payload.walk);
-    activeDots = chartState && Array.isArray(chartState.dots) ? chartState.dots : [];
-    setActiveWalkPoint(null);
-    renderWalkTable(walkTableEl, payload.walk);
+    activeDots = chartState && chartState.dotsByMode ? chartState.dotsByMode : { ji: [], edo: [] };
+    const appliedMode = setActiveMode(payload.mode || currentMode);
+    renderWalkTable(walkTableEl, payload.walk, appliedMode);
   }
 
   showIdle();
@@ -230,6 +254,7 @@ export function initPumpPreviewPanel(container){
     showIdle,
     showPump,
     setModeAvailability,
-    setActiveWalkPoint
+    setActiveWalkPoint,
+    setActiveMode
   };
 }
