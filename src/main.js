@@ -37,8 +37,7 @@ function triggerPumpPlayback(action){
     mode: pumpPreviewMode,
     loop: pumpPreviewLoopToggle && pumpPreviewLoopToggle.checked,
     noteDuration: 0.6,
-    release: 0.08,
-    onComplete: handlePlaybackComplete
+    release: 0.08
   });
   startPlaybackMonitor();
   updatePlaybackControls();
@@ -168,6 +167,13 @@ function syncSparklineToPlayback(){
   if(active !== lastSparklineHighlight){
     lastSparklineHighlight = active;
     setSparklineActivePoint(active);
+  }
+  if(!playback.loop){
+    var endTime = typeof playback.endTime === 'number' ? playback.endTime : (schedule.length ? schedule[schedule.length-1].stopTime : null);
+    if(endTime!=null && now >= endTime - 1e-3 && playback === getPlaybackState()){
+      stopPump();
+      handlePlaybackComplete();
+    }
   }
 }
 

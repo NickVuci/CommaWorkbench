@@ -44,18 +44,10 @@ function schedulePumpPlayback(walk, options){
     loop: false,
     noteDuration: DEFAULT_NOTE_DURATION,
     release: DEFAULT_RELEASE,
-    mode: 'ji',
-    onComplete: null
+    mode: 'ji'
   }, options||{});
   const baseHz = (walk.summary && walk.summary.basePitchHz) || 440;
   const schedule = [];
-  const callbackTimers = [];
-  function queueCallback(fn, fireTime, payload){
-    if(typeof fn !== 'function') return;
-    const delayMs = Math.max(0, (fireTime - ctx.currentTime) * 1000);
-    const timerId = setTimeout(()=>fn(payload), delayMs);
-    callbackTimers.push(timerId);
-  }
   let startTime = ctx.currentTime + 0.05;
   ctx.resume && ctx.resume().catch(()=>{});
   // Reference pitch first
@@ -76,16 +68,8 @@ function schedulePumpPlayback(walk, options){
     schedule.push(entry);
     startTime += opts.noteDuration;
   }
-  if(schedule.length){
-    const finalStop = schedule[schedule.length-1].stopTime;
-    queueCallback(()=>{
-      if(currentPlayback !== playback) return;
-      stopCurrentPlayback();
-      if(typeof opts.onComplete === 'function'){
-        opts.onComplete();
-      }
-    }, finalStop, null);
-  }
+  const lastEntry = schedule.length ? schedule[schedule.length-1] : null;
+  const naturalEndTime = lastEntry ? lastEntry.stopTime : startTime;
   const playback = {
     ctx,
     schedule,
@@ -97,7 +81,8 @@ function schedulePumpPlayback(walk, options){
     options: opts,
     loopTimer: null,
     stop: ()=> stopCurrentPlayback(),
-    callbackTimers
+    endTime: naturalEndTime,
+    completed: false
   };
   currentPlayback = playback;
   if(playback.loop){
@@ -116,9 +101,6 @@ function stopCurrentPlayback(){
   if(!currentPlayback) return;
   if(currentPlayback.loopTimer){
     clearTimeout(currentPlayback.loopTimer);
-  }
-  if(Array.isArray(currentPlayback.callbackTimers)){
-    currentPlayback.callbackTimers.forEach(id=> clearTimeout(id));
   }
   currentPlayback.schedule.forEach(entry=>{
     try{ entry.osc.stop(); }catch(e){}
