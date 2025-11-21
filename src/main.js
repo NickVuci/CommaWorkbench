@@ -253,12 +253,6 @@ if(edoTableBody){
 
 if(pumpTableBody){
   pumpTableBody.addEventListener('click', function(ev){
-    var btn = ev.target.closest('button[data-pump-index]');
-    if(btn){
-      var idx = Number(btn.dataset.pumpIndex);
-      if(!Number.isNaN(idx)) setSelectedPump(idx);
-      return;
-    }
     var row = ev.target.closest('tr[data-pump-index]');
     if(row){
       var ridx = Number(row.dataset.pumpIndex);
