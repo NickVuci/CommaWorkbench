@@ -27,6 +27,7 @@ export function buildPumpWalk(pump, steps, options){
   const basePitchHz = Math.max(1, toNumberOr(opts.basePitchHz, DEFAULT_BASE_HZ));
   const points = [];
   let cumJI = 0;
+  let cumEDO = edoStepSize ? 0 : null;
   let totalAbsMoves = 0;
 
   let stepCounter = 0;
@@ -44,9 +45,12 @@ export function buildPumpWalk(pump, steps, options){
       const delta = direction * stepCents;
       cumJI += delta;
       totalAbsMoves += 1;
-      const approxCents = edoStepSize ? Math.round(cumJI / edoStepSize) * edoStepSize : null;
+      const deltaEDO = edoStepSize ? Math.round(delta / edoStepSize) * edoStepSize : null;
+      if(deltaEDO!=null){
+        cumEDO += deltaEDO;
+      }
       const freqJI = centsToHz(basePitchHz, cumJI);
-      const freqEDO = approxCents==null ? null : centsToHz(basePitchHz, approxCents);
+      const freqEDO = cumEDO==null ? null : centsToHz(basePitchHz, cumEDO);
       points.push({
         index: (++stepCounter),
         coeff: direction,
@@ -55,8 +59,9 @@ export function buildPumpWalk(pump, steps, options){
         repeatIndex: r+1,
         repeatCount: repeats,
         deltaJI: delta,
+        deltaEDO: deltaEDO,
         cumulativeJI: cumJI,
-        cumulativeEDO: approxCents,
+        cumulativeEDO: cumEDO,
         freqHz: freqJI,
         freqHzJI: freqJI,
         freqHzEDO: freqEDO
@@ -69,6 +74,7 @@ export function buildPumpWalk(pump, steps, options){
     summary: {
       totalAbsMoves,
       netCents: cumJI,
+      netCentsEDO: cumEDO,
       edo,
       edoStepSize,
       basePitchHz
